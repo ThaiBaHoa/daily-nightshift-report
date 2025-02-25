@@ -251,8 +251,8 @@ function App() {
     try {
       const ws = XLSX.utils.json_to_sheet(data.map(row => ({
         ...row,
-        Date: row.Date ? new Date(parse(row.Date, 'dd/MM/yyyy', new Date()).setHours(0, 0, 0, 0)) : null,
-        DATE: row.DATE ? new Date(parse(row.DATE, 'dd/MM/yyyy', new Date()).setHours(0, 0, 0, 0)) : null
+        Date: row.Date && typeof row.Date === 'string' ? new Date(parse(row.Date, 'dd/MM/yyyy', new Date()).setHours(0, 0, 0, 0)) : null,
+        DATE: row.DATE && typeof row.DATE === 'string' ? new Date(parse(row.DATE, 'dd/MM/yyyy', new Date()).setHours(0, 0, 0, 0)) : null
       })));
       
       if (excelFormat) {
