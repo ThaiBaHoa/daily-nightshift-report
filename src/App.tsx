@@ -334,42 +334,47 @@ function App() {
       return;
     }
 
+    if (!selectedStt) {
+      alert('Vui lòng chọn STT!');
+      return;
+    }
+
     const updatedData = [...data];
-    const rowIndex = updatedData.findIndex(row => Number(row.STT) === Number(selectedStt));
+    const rowIndex = updatedData.findIndex(row => row.STT === selectedStt);
     
     if (rowIndex === -1) {
       return;
     }
 
-    const updatedRow = { ...updatedData[rowIndex] };
+    // Cập nhật dữ liệu cho dòng được chọn
     headers.forEach(header => {
-      if (header === 'INSPECTOR' && selectedInspector) {
-        updatedRow[header] = selectedInspector;
-      } else if ((header === 'Date' || header === 'DATE') && selectedDate) {
-        updatedRow[header] = formatDate(selectedDate);
-      } else if (header === 'Status') {
-        updatedRow[header] = template[header].value || 'Not Check';
-      } else if (template[header]?.isEditable) {
-        updatedRow[header] = template[header].value;
+      if (template[header]) {
+        updatedData[rowIndex][header] = template[header].value;
       }
     });
 
-    updatedData[rowIndex] = updatedRow;
+    // Cập nhật INSPECTOR và Date
+    updatedData[rowIndex]['INSPECTOR'] = selectedInspector;
+    updatedData[rowIndex]['Date'] = formatDate(selectedDate);
+    if (updatedData[rowIndex]['DATE']) {
+      updatedData[rowIndex]['DATE'] = formatDate(selectedDate);
+    }
+
     setData(updatedData);
-    
+
+    // Reset form
     const resetTemplate = { ...template };
     headers.forEach(header => {
-      if (resetTemplate[header]?.isEditable && 
-          header !== 'INSPECTOR' && 
-          header !== 'Date' && 
-          header !== 'DATE') {
-        resetTemplate[header].value = null;
+      if (resetTemplate[header]) {
+        resetTemplate[header].value = '';
       }
     });
     setTemplate(resetTemplate);
     
-    if (Number(selectedStt) < data.length) {
-      setSelectedStt((Number(selectedStt) + 1).toString());
+    // Chọn dòng tiếp theo nếu có
+    const nextStt = data.find(row => Number(row.STT) > Number(selectedStt))?.STT;
+    if (nextStt) {
+      setSelectedStt(nextStt);
     }
     
     saveTempFile();
@@ -380,11 +385,24 @@ function App() {
   };
 
   const handleSttChange = (event: SelectChangeEvent) => {
-    setSelectedStt(event.target.value);
-    const updatedData = [...data];
-    const currentRow = updatedData[0] || {};
-    currentRow['STT'] = event.target.value;
-    setData(updatedData);
+    const stt = event.target.value;
+    setSelectedStt(stt);
+    
+    // Tìm dòng tương ứng với STT được chọn
+    const selectedRow = data.find(row => row.STT === stt);
+    if (selectedRow) {
+      // Cập nhật template với dữ liệu từ dòng được chọn
+      const updatedTemplate = { ...template };
+      headers.forEach(header => {
+        if (updatedTemplate[header]) {
+          updatedTemplate[header] = {
+            ...updatedTemplate[header],
+            value: selectedRow[header] || ''
+          };
+        }
+      });
+      setTemplate(updatedTemplate);
+    }
   };
 
   return (
@@ -417,9 +435,9 @@ function App() {
                       label="STT"
                       onChange={handleSttChange}
                     >
-                      {Array.from({ length: 20 }, (_, i) => (i + 1).toString()).map((stt) => (
-                        <MenuItem key={stt} value={stt}>
-                          {stt}
+                      {data.map((row) => (
+                        <MenuItem key={row.STT} value={row.STT}>
+                          {row.STT}
                         </MenuItem>
                       ))}
                     </Select>
