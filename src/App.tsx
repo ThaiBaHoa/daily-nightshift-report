@@ -20,8 +20,8 @@ import * as XLSX from 'xlsx';
 import { format, parse } from 'date-fns';
 
 interface TemplateField {
-  value: string | number | null;
-  isEditable: boolean;
+  value: string;
+  type?: string;
 }
 
 interface TemplateRow {
@@ -29,7 +29,7 @@ interface TemplateRow {
 }
 
 interface DataRow {
-  [key: string]: string | number | null;
+  [key: string]: string;
 }
 
 interface SelectChangeEvent {
@@ -170,7 +170,7 @@ function App() {
       const filteredData = jsonData.slice(1)
         .filter((row: any[]) => row[originalHeaders.indexOf('STT')])
         .map((row: any[]) => {
-          const rowData: { [key: string]: any } = {};
+          const rowData: DataRow = { STT: row[originalHeaders.indexOf('STT')] };
           headerRow.forEach(header => {
             if (header === 'Date' || header === 'DATE') {
               rowData[header] = formattedDate;
@@ -431,12 +431,12 @@ function App() {
                     <Select
                       labelId="stt-select-label"
                       id="stt-select"
-                      value={selectedStt}
+                      value={selectedStt || ''}
                       label="STT"
                       onChange={handleSttChange}
                     >
-                      {data.map((row) => (
-                        <MenuItem key={row.STT.toString()} value={row.STT.toString()}>
+                      {data.map((row) => row.STT && (
+                        <MenuItem key={row.STT} value={row.STT}>
                           {row.STT}
                         </MenuItem>
                       ))}
