@@ -216,7 +216,7 @@ function App() {
 
       setExcelFormat(workbook);
       console.log('Template loaded successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Detailed error loading template:', error);
       alert(`Không thể tải file template: ${error.message}`);
     }
