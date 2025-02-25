@@ -17,7 +17,7 @@ import {
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import * as XLSX from 'xlsx';
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 
 interface DataRow {
   [key: string]: string | number | null;
@@ -249,7 +249,11 @@ function App() {
     }
 
     try {
-      const ws = XLSX.utils.json_to_sheet(data);
+      const ws = XLSX.utils.json_to_sheet(data.map(row => ({
+        ...row,
+        Date: row.Date ? new Date(parse(row.Date, 'dd/MM/yyyy', new Date()).setHours(0, 0, 0, 0)) : null,
+        DATE: row.DATE ? new Date(parse(row.DATE, 'dd/MM/yyyy', new Date()).setHours(0, 0, 0, 0)) : null
+      })));
       
       if (excelFormat) {
         ws['!ref'] = excelFormat.range;
@@ -257,11 +261,18 @@ function App() {
         ws['!cols'] = excelFormat.cols;
       }
 
-      // Định dạng ngày tháng cho cột Date
+      // Định dạng ngày tháng cho cột Date và DATE
       for (let row = 0; row < data.length; row++) {
         const dateCell = ws[XLSX.utils.encode_cell({ r: row + 1, c: headers.indexOf('Date') })];
+        const DATE_Cell = ws[XLSX.utils.encode_cell({ r: row + 1, c: headers.indexOf('DATE') })];
+        
         if (dateCell) {
-          dateCell.z = 'dd/mm/yyyy';
+          dateCell.t = 'd';  // Set cell type to date
+          dateCell.z = 'dd/mm/yyyy';  // Set date format
+        }
+        if (DATE_Cell) {
+          DATE_Cell.t = 'd';  // Set cell type to date
+          DATE_Cell.z = 'dd/mm/yyyy';  // Set date format
         }
       }
 
