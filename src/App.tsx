@@ -60,9 +60,9 @@ function App() {
   const [data, setData] = useState<DataRow[]>([]);
   const [template, setTemplate] = useState<TemplateRow>({});
   const [headers, setHeaders] = useState<string[]>([]);
+  const [selectedStt, setSelectedStt] = useState<string>('');
   const [selectedInspector, setSelectedInspector] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedSTT, setSelectedSTT] = useState<number>(1);
   const [excelFormat, setExcelFormat] = useState<any>(null);
 
   const formatDate = (date: Date): string => {
@@ -196,7 +196,7 @@ function App() {
       
       setSelectedInspector('');
       setSelectedDate(currentDate);
-      setSelectedSTT(1);
+      setSelectedStt('');
 
       const tempData = loadTempFile();
       if (tempData) {
@@ -335,7 +335,7 @@ function App() {
     }
 
     const updatedData = [...data];
-    const rowIndex = updatedData.findIndex(row => Number(row.STT) === selectedSTT);
+    const rowIndex = updatedData.findIndex(row => Number(row.STT) === Number(selectedStt));
     
     if (rowIndex === -1) {
       return;
@@ -368,8 +368,8 @@ function App() {
     });
     setTemplate(resetTemplate);
     
-    if (selectedSTT < data.length) {
-      setSelectedSTT(selectedSTT + 1);
+    if (Number(selectedStt) < data.length) {
+      setSelectedStt((Number(selectedStt) + 1).toString());
     }
     
     saveTempFile();
@@ -379,25 +379,12 @@ function App() {
     loadTemplateFile();
   };
 
-  const handleSTTChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const stt = parseInt(event.target.value);
-    if (stt >= 1 && stt <= data.length) {
-      setSelectedSTT(stt);
-      
-      const selectedRow = data.find(row => Number(row.STT) === stt);
-      if (selectedRow) {
-        const updatedTemplate = { ...template };
-        headers.forEach(header => {
-          if (updatedTemplate[header]) {
-            updatedTemplate[header] = {
-              ...updatedTemplate[header],
-              value: selectedRow[header]
-            };
-          }
-        });
-        setTemplate(updatedTemplate);
-      }
-    }
+  const handleSttChange = (event: SelectChangeEvent) => {
+    setSelectedStt(event.target.value);
+    const updatedData = [...data];
+    const currentRow = updatedData[0] || {};
+    currentRow['STT'] = event.target.value;
+    setData(updatedData);
   };
 
   return (
@@ -420,25 +407,33 @@ function App() {
           {headers.length > 0 && (
             <Box component="form" noValidate sx={{ mt: 2 }}>
               <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="STT *"
-                    type="number"
-                    value={selectedSTT}
-                    onChange={handleSTTChange}
-                    inputProps={{ min: 1, max: data.length }}
-                    helperText={`Nhập STT từ 1 đến ${data.length}`}
-                  />
+                <Grid item xs={12} sm={4}>
+                  <FormControl fullWidth>
+                    <InputLabel id="stt-select-label">STT</InputLabel>
+                    <Select
+                      labelId="stt-select-label"
+                      id="stt-select"
+                      value={selectedStt}
+                      label="STT"
+                      onChange={handleSttChange}
+                    >
+                      {Array.from({ length: 20 }, (_, i) => (i + 1).toString()).map((stt) => (
+                        <MenuItem key={stt} value={stt}>
+                          {stt}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                 </Grid>
 
-                <Grid item xs={12}>
+                <Grid item xs={12} sm={4}>
                   <FormControl fullWidth>
-                    <InputLabel id="inspector-label">INSPECTOR *</InputLabel>
+                    <InputLabel id="inspector-select-label">INSPECTOR</InputLabel>
                     <Select
-                      labelId="inspector-label"
+                      labelId="inspector-select-label"
+                      id="inspector-select"
                       value={selectedInspector}
-                      label="INSPECTOR *"
+                      label="INSPECTOR"
                       onChange={(e: SelectChangeEvent) => handleInputChange('INSPECTOR', e.target.value)}
                       required
                     >
@@ -521,7 +516,7 @@ function App() {
                 {headers
                   .filter(header => !['STT', 'INSPECTOR', 'Status', 'Date', 'Note', 'Corrective action', 'Target'].includes(header))
                   .map((header) => {
-                    const currentRow = data.find(row => Number(row.STT) === selectedSTT);
+                    const currentRow = data.find(row => Number(row.STT) === Number(selectedStt));
                     return (
                       <Grid item xs={12} key={header}>
                         <TextField
@@ -580,7 +575,7 @@ function App() {
                 </thead>
                 <tbody>
                   {data.map((row, index) => (
-                    <tr key={index} style={{ backgroundColor: row.STT === selectedSTT ? '#f5f5f5' : 'transparent' }}>
+                    <tr key={index} style={{ backgroundColor: row.STT === selectedStt ? '#f5f5f5' : 'transparent' }}>
                       {headers
                         .filter(header => header !== 'DATE')
                         .map((header) => (

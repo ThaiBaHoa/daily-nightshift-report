@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2025-02-25
+
+### Added
+- Thêm tính năng chọn STT từ dropdown menu (1-20)
+- Cải thiện trải nghiệm người dùng khi nhập dữ liệu
+
 ## [1.1.0] - 2025-02-25
 
 ### Changed
