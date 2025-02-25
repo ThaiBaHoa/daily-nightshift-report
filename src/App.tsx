@@ -143,18 +143,8 @@ function App() {
 
   const loadTemplateFile = async () => {
     try {
-      // Thử tải từ public folder
-      let response = await fetch(`${process.env.PUBLIC_URL}/template.xlsx`);
-      
-      // Nếu không tìm thấy trong public folder, thử tải từ thư mục gốc
-      if (!response.ok) {
-        response = await fetch('/template.xlsx');
-      }
-
-      // Nếu vẫn không tìm thấy, thử tải từ thư mục daily-nightshift-report
-      if (!response.ok) {
-        response = await fetch('/daily-nightshift-report/template.xlsx');
-      }
+      // Tải template từ thư mục data
+      const response = await fetch(`${process.env.PUBLIC_URL}/data/template.xlsx`);
 
       if (!response.ok) {
         throw new Error('Template file not found');
