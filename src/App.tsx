@@ -143,56 +143,110 @@ function App() {
 
   const loadTemplateFile = async () => {
     try {
+      console.log('Trying to load template from:', `${process.env.PUBLIC_URL}/data/template.xlsx`);
+      
       // Tải template từ thư mục data
       const response = await fetch(`${process.env.PUBLIC_URL}/data/template.xlsx`);
+      console.log('Response status:', response.status);
 
       if (!response.ok) {
-        throw new Error('Template file not found');
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      
-      // Đọc dữ liệu với header từ dòng đầu tiên
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
-      
-      // Lấy headers từ các key của dòng đầu tiên
-      const headers = Object.keys(jsonData[0] || {}).filter(header => header !== '__EMPTY');
-      setHeaders(headers);
-
-      // Tạo template với các trường từ headers
-      const templateRow: TemplateRow = {};
-      headers.forEach(header => {
-        templateRow[header] = {
-          value: '',
-          type: header === 'Status' ? 'select' : 'text'
-        };
-      });
-      setTemplate(templateRow);
-
-      // Chuyển đổi dữ liệu từ file Excel
-      const rows = jsonData.map((row: any) => {
-        const dataRow: DataRow = {
-          STT: String(row.STT || ''),
-          INSPECTOR: String(row.INSPECTOR || ''),
-          Date: formatDate(selectedDate),
-          DATE: formatDate(selectedDate)
-        };
+        console.log('Response not OK:', response.statusText);
+        // Thử tải từ đường dẫn tuyệt đối
+        const altResponse = await fetch('/daily-nightshift-report/data/template.xlsx');
+        console.log('Alternative response status:', altResponse.status);
         
+        if (!altResponse.ok) {
+          throw new Error(`Template file not found. Status: ${altResponse.status}`);
+        }
+        
+        const arrayBuffer = await altResponse.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        
+        // Đọc dữ liệu với header từ dòng đầu tiên
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        console.log('Loaded data:', jsonData);
+        
+        // Lấy headers từ các key của dòng đầu tiên
+        const headers = Object.keys(jsonData[0] || {}).filter(header => header !== '__EMPTY');
+        setHeaders(headers);
+
+        // Tạo template với các trường từ headers
+        const templateRow: TemplateRow = {};
         headers.forEach(header => {
-          if (!['STT', 'INSPECTOR', 'Date', 'DATE'].includes(header)) {
-            dataRow[header] = String(row[header] || '');
-          }
+          templateRow[header] = {
+            value: '',
+            type: header === 'Status' ? 'select' : 'text'
+          };
         });
-        
-        return dataRow;
-      });
-      setData(rows);
+        setTemplate(templateRow);
 
-      setExcelFormat(workbook);
+        // Chuyển đổi dữ liệu từ file Excel
+        const rows = jsonData.map((row: any) => {
+          const dataRow: DataRow = {
+            STT: String(row.STT || ''),
+            INSPECTOR: String(row.INSPECTOR || ''),
+            Date: formatDate(selectedDate),
+            DATE: formatDate(selectedDate)
+          };
+          
+          headers.forEach(header => {
+            if (!['STT', 'INSPECTOR', 'Date', 'DATE'].includes(header)) {
+              dataRow[header] = String(row[header] || '');
+            }
+          });
+          
+          return dataRow;
+        });
+        setData(rows);
+
+        setExcelFormat(workbook);
+      } else {
+        const arrayBuffer = await response.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        
+        // Đọc dữ liệu với header từ dòng đầu tiên
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        console.log('Loaded data:', jsonData);
+        
+        // Lấy headers từ các key của dòng đầu tiên
+        const headers = Object.keys(jsonData[0] || {}).filter(header => header !== '__EMPTY');
+        setHeaders(headers);
+
+        // Tạo template với các trường từ headers
+        const templateRow: TemplateRow = {};
+        headers.forEach(header => {
+          templateRow[header] = {
+            value: '',
+            type: header === 'Status' ? 'select' : 'text'
+          };
+        });
+        setTemplate(templateRow);
+
+        // Chuyển đổi dữ liệu từ file Excel
+        const rows = jsonData.map((row: any) => {
+          const dataRow: DataRow = {
+            STT: String(row.STT || ''),
+            INSPECTOR: String(row.INSPECTOR || ''),
+            Date: formatDate(selectedDate),
+            DATE: formatDate(selectedDate)
+          };
+          
+          headers.forEach(header => {
+            if (!['STT', 'INSPECTOR', 'Date', 'DATE'].includes(header)) {
+              dataRow[header] = String(row[header] || '');
+            }
+          });
+          
+          return dataRow;
+        });
+        setData(rows);
+
+        setExcelFormat(workbook);
+      }
     } catch (error) {
-      console.error('Error loading template:', error);
+      console.error('Detailed error loading template:', error);
       alert('Không thể tải file template. Vui lòng thử lại!');
     }
   };
