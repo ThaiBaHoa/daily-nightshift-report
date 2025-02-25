@@ -66,26 +66,31 @@ function App() {
     merges: any[];
     cols: any[];
   } | null>(null);
-  const [tempFilePath, setTempFilePath] = useState<string | null>(null);
 
   useEffect(() => {
     loadTemplateFile();
-    return () => {
-      // Xóa file tạm khi component unmount
-      if (tempFilePath) {
-        deleteTempFile();
+    // Khôi phục dữ liệu tạm nếu có
+    try {
+      const tempDataStr = localStorage.getItem('tempData');
+      if (tempDataStr) {
+        const tempData = JSON.parse(tempDataStr);
+        setData(tempData.data);
+        setSelectedInspector(tempData.inspector);
+        setSelectedDate(new Date(tempData.date));
       }
+    } catch (error) {
+      console.error('Error loading temp data:', error);
+    }
+    return () => {
+      deleteTempFile();
     };
   }, []);
 
   const deleteTempFile = () => {
-    if (tempFilePath) {
-      try {
-        XLSX.writeFile(XLSX.utils.book_new(), tempFilePath);
-      } catch (error) {
-        console.error('Error deleting temp file:', error);
-      }
-      setTempFilePath(null);
+    try {
+      localStorage.removeItem('tempData');
+    } catch (error) {
+      console.error('Error deleting temp data:', error);
     }
   };
 
@@ -93,32 +98,15 @@ function App() {
     if (!selectedInspector) return;
 
     try {
-      const ws = XLSX.utils.json_to_sheet(data);
-      
-      if (excelFormat) {
-        ws['!ref'] = excelFormat.range;
-        ws['!merges'] = excelFormat.merges;
-        ws['!cols'] = excelFormat.cols;
-      }
-
-      for (let row = 0; row < data.length; row++) {
-        const dateCell = ws[XLSX.utils.encode_cell({ r: row + 1, c: headers.indexOf('Date') })];
-        if (dateCell) {
-          dateCell.z = 'dd/mm/yyyy';
-        }
-      }
-
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-      
-      // Tạo tên file tạm theo INSPECTOR
-      const tempFileName = `temp_${selectedInspector}_${format(new Date(), 'ddMMyyyy')}.xlsx`;
-      const filePath = `${process.env.PUBLIC_URL}/temp/${tempFileName}`;
-      
-      XLSX.writeFile(wb, filePath);
-      setTempFilePath(filePath);
+      // Lưu dữ liệu vào localStorage thay vì file tạm
+      const tempData = {
+        data,
+        inspector: selectedInspector,
+        date: selectedDate
+      };
+      localStorage.setItem('tempData', JSON.stringify(tempData));
     } catch (error) {
-      console.error('Error saving temp file:', error);
+      console.error('Error saving temp data:', error);
     }
   };
 
@@ -248,7 +236,7 @@ function App() {
       setSelectedSTT(selectedSTT + 1);
     }
 
-    // Lưu file tạm sau mỗi lần cập nhật
+    // Lưu dữ liệu tạm
     saveTempFile();
   };
 
@@ -267,6 +255,7 @@ function App() {
         ws['!cols'] = excelFormat.cols;
       }
 
+      // Định dạng ngày tháng cho cột Date
       for (let row = 0; row < data.length; row++) {
         const dateCell = ws[XLSX.utils.encode_cell({ r: row + 1, c: headers.indexOf('Date') })];
         if (dateCell) {
@@ -279,9 +268,9 @@ function App() {
       
       const fileName = `Daily Nightshift report_${format(selectedDate || new Date(), 'ddMMyyyy')}.xlsx`;
       XLSX.writeFile(wb, fileName);
-      alert('File đã được xuất thành công!');
+      alert('File đã được xuất thành công!\nBạn có thể tìm thấy file trong thư mục Downloads của thiết bị.');
 
-      // Xóa file tạm sau khi xuất thành công
+      // Xóa dữ liệu tạm sau khi xuất thành công
       deleteTempFile();
     } catch (error) {
       console.error('Error exporting file:', error);
@@ -299,12 +288,15 @@ function App() {
       setSelectedSTT(stt);
       
       // Cập nhật template với dữ liệu của dòng được chọn
-      const selectedRow = data.find(row => row.STT === stt);
+      const selectedRow = data.find(row => Number(row.STT) === stt);
       if (selectedRow) {
         const updatedTemplate = { ...template };
         headers.forEach(header => {
-          if (updatedTemplate[header].isEditable) {
-            updatedTemplate[header].value = selectedRow[header];
+          if (updatedTemplate[header]) {
+            updatedTemplate[header] = {
+              ...updatedTemplate[header],
+              value: selectedRow[header]
+            };
           }
         });
         setTemplate(updatedTemplate);
@@ -409,19 +401,22 @@ function App() {
 
                 {headers
                   .filter(header => !['STT', 'INSPECTOR', 'Status', 'Date', 'DATE'].includes(header))
-                  .map((header) => (
-                    <Grid item xs={12} key={header}>
-                      <TextField
-                        fullWidth
-                        label={header}
-                        value={template[header]?.isEditable ? template[header]?.value || '' : data.find(row => row.STT === selectedSTT)?.[header] || ''}
-                        onChange={(e) => handleInputChange(header, e.target.value)}
-                        disabled={!template[header]?.isEditable}
-                        helperText={template[header]?.isEditable ? 'Cần nhập' : 'Giá trị mặc định'}
-                        required={template[header]?.isEditable}
-                      />
-                    </Grid>
-                  ))}
+                  .map((header) => {
+                    const currentRow = data.find(row => Number(row.STT) === selectedSTT);
+                    return (
+                      <Grid item xs={12} key={header}>
+                        <TextField
+                          fullWidth
+                          label={header}
+                          value={template[header]?.isEditable ? template[header]?.value || '' : currentRow?.[header] || ''}
+                          onChange={(e) => handleInputChange(header, e.target.value)}
+                          disabled={!template[header]?.isEditable}
+                          helperText={template[header]?.isEditable ? 'Cần nhập' : 'Giá trị mặc định'}
+                          required={template[header]?.isEditable}
+                        />
+                      </Grid>
+                    );
+                  })}
               </Grid>
               
               <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
