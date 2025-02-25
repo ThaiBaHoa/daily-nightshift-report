@@ -436,7 +436,7 @@ function App() {
                       onChange={handleSttChange}
                     >
                       {data.map((row) => (
-                        <MenuItem key={row.STT} value={row.STT}>
+                        <MenuItem key={row.STT.toString()} value={row.STT.toString()}>
                           {row.STT}
                         </MenuItem>
                       ))}
