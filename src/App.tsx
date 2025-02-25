@@ -153,66 +153,46 @@ function App() {
     }
   };
 
-  const handleInputChange = (field: string, value: string | number | Date) => {
-    if (template[field]?.isEditable) {
-      if (field === 'INSPECTOR') {
-        setSelectedInspector(value as string);
-        setTemplate(prev => ({
-          ...prev,
-          [field]: {
-            ...prev[field],
-            value: value as string
-          }
-        }));
-      } else if (field === 'Status') {
-        setTemplate(prev => ({
-          ...prev,
-          [field]: {
-            ...prev[field],
-            value: value as string
-          }
-        }));
-      } else if (field === 'Target' || field === 'Note' || field === 'Corrective action') {
-        setTemplate(prev => ({
-          ...prev,
-          [field]: {
-            ...prev[field],
-            value: value as string
-          }
-        }));
-      }
+  const handleInputChange = (field: string, value: string) => {
+    if (template[field]) {
+      setTemplate(prev => ({
+        ...prev,
+        [field]: {
+          ...prev[field],
+          value: value
+        }
+      }));
     }
   };
 
   const handleDateChange = (date: Date | null) => {
-    if (date && !isNaN(date.getTime())) {
-      const formattedDate = formatDate(date);
-      
-      // Cập nhật selectedDate
+    if (date) {
       setSelectedDate(date);
-      
-      // Cập nhật giá trị DATE và Date trong template
+      const formattedDate = formatDate(date);
+      setTemplate(prev => {
+        const newTemplate = { ...prev };
+        if (newTemplate['Date']) {
+          newTemplate['Date'].value = formattedDate;
+        }
+        if (newTemplate['DATE']) {
+          newTemplate['DATE'].value = formattedDate;
+        }
+        return newTemplate;
+      });
+    }
+  };
+
+  const handleInspectorChange = (event: SelectChangeEvent) => {
+    const value = event.target.value;
+    setSelectedInspector(value);
+    if (template['INSPECTOR']) {
       setTemplate(prev => ({
         ...prev,
-        'DATE': {
-          ...prev['DATE'],
-          value: formattedDate
-        },
-        'Date': {
-          ...prev['Date'],
-          value: formattedDate
+        'INSPECTOR': {
+          ...prev['INSPECTOR'],
+          value: value
         }
       }));
-
-      // Cập nhật giá trị Date trong tất cả các dòng data
-      setData(prev => prev.map(row => ({
-        ...row,
-        'DATE': formattedDate,
-        'Date': formattedDate
-      })));
-
-      // Lưu dữ liệu tạm
-      saveTempFile();
     }
   };
 
@@ -380,7 +360,7 @@ function App() {
                       id="inspector-select"
                       value={selectedInspector}
                       label="INSPECTOR"
-                      onChange={(e: SelectChangeEvent) => handleInputChange('INSPECTOR', e.target.value)}
+                      onChange={handleInspectorChange}
                       required
                     >
                       {INSPECTORS.map((inspector) => (
@@ -468,11 +448,10 @@ function App() {
                         <TextField
                           fullWidth
                           label={header}
-                          value={template[header]?.isEditable ? template[header]?.value || '' : currentRow?.[header] || ''}
+                          value={template[header]?.value || ''}
                           onChange={(e) => handleInputChange(header, e.target.value)}
-                          disabled={!template[header]?.isEditable}
-                          helperText={template[header]?.isEditable ? 'Cần nhập' : 'Giá trị mặc định'}
-                          required={template[header]?.isEditable}
+                          helperText="Cần nhập"
+                          required
                         />
                       </Grid>
                     );
