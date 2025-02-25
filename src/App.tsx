@@ -119,48 +119,58 @@ function App() {
       const worksheet = workbook.Sheets[sheetName];
 
       // Lưu lại style và format của template
-      const templateRange = worksheet['!ref'] || 'A1';
+      const templateRange = worksheet['!ref'] || '';
       const templateMerges = worksheet['!merges'] || [];
       const templateCols = worksheet['!cols'] || [];
-      
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
-        defval: null,
-        raw: false
-      }) as Record<string, string | number | null>[];
-      
-      if (jsonData.length > 0) {
-        // Lọc bỏ cột __PowerAppsId__
-        const filteredData = jsonData.map(row => {
-          const newRow = { ...row };
-          delete newRow.__PowerAppsId__;
-          return newRow;
-        });
 
-        const headers = Object.keys(filteredData[0]).filter(h => h !== '__PowerAppsId__');
-        setHeaders(headers);
-        
-        const templateRow: TemplateRow = {};
-        headers.forEach(header => {
-          const value = filteredData[0][header];
-          templateRow[header] = {
-            value: value,
-            isEditable: value === null || header === 'INSPECTOR' || header === 'Status' || header === 'Date'
-          };
-        });
-
-        setTemplate(templateRow);
-        setData(filteredData);
-        setExcelFormat({
-          range: templateRange,
-          merges: templateMerges,
-          cols: templateCols
-        });
-        
-        // Reset các giá trị khi load template mới
-        setSelectedInspector('');
-        setSelectedDate(new Date());
-        setSelectedSTT(1);
+      // Chuyển đổi dữ liệu từ file Excel sang JSON
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[];
+      
+      // Lấy header từ dòng đầu tiên
+      const headerRow = jsonData[0] as string[];
+      
+      // Thêm cột Date và INSPECTOR nếu chưa có
+      if (!headerRow.includes('Date')) {
+        headerRow.push('Date');
       }
+      if (!headerRow.includes('INSPECTOR')) {
+        headerRow.push('INSPECTOR');
+      }
+      
+      setHeaders(headerRow);
+
+      // Tạo template row với các trường có thể chỉnh sửa
+      const templateRow: TemplateRow = {};
+      headerRow.forEach(header => {
+        templateRow[header] = {
+          value: null,
+          isEditable: ['INSPECTOR', 'Date', 'Status'].includes(header)
+        };
+      });
+
+      // Lọc dữ liệu, chỉ lấy các dòng có STT
+      const filteredData = jsonData.slice(1)
+        .filter((row: any[]) => row[headerRow.indexOf('STT')])
+        .map((row: any[]) => {
+          const rowData: { [key: string]: any } = {};
+          headerRow.forEach((header, index) => {
+            rowData[header] = row[index] || null;
+          });
+          return rowData;
+        });
+
+      setTemplate(templateRow);
+      setData(filteredData);
+      setExcelFormat({
+        range: templateRange,
+        merges: templateMerges,
+        cols: templateCols
+      });
+      
+      // Reset các giá trị khi load template mới
+      setSelectedInspector('');
+      setSelectedDate(new Date());
+      setSelectedSTT(1);
     } catch (error) {
       console.error('Không thể tải file mẫu:', error);
     }
@@ -214,7 +224,7 @@ function App() {
         updatedRow[header] = format(selectedDate, 'dd/MM/yyyy');
       } else if (header === 'Status') {
         updatedRow[header] = template[header].value || 'Not Checked';
-      } else if (template[header].isEditable) {
+      } else if (template[header]?.isEditable) {
         updatedRow[header] = template[header].value;
       }
     });
@@ -226,7 +236,7 @@ function App() {
     // Reset các trường có thể chỉnh sửa, ngoại trừ INSPECTOR và Date
     const resetTemplate = { ...template };
     headers.forEach(header => {
-      if (resetTemplate[header].isEditable && header !== 'INSPECTOR' && header !== 'Date') {
+      if (resetTemplate[header]?.isEditable && header !== 'INSPECTOR' && header !== 'Date') {
         resetTemplate[header].value = null;
       }
     });
