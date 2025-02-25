@@ -168,17 +168,14 @@ function App() {
 
   const handleInputChange = (field: string, value: string | number) => {
     if (template[field]?.isEditable) {
-      if (field === 'INSPECTOR') {
-        setSelectedInspector(value as string);
-      } else if (field === 'Date') {
+      if (field === 'Date') {
         const date = new Date(value);
         const formattedDate = format(date, 'dd/MM/yyyy');
         setSelectedDate(date);
         // Cập nhật ngày cho tất cả các dòng
         setData(prev => prev.map(row => ({
           ...row,
-          Date: formattedDate,
-          DATE: formattedDate // Thêm cập nhật cho trường DATE nếu có
+          Date: formattedDate
         })));
       }
       setTemplate(prev => ({
@@ -249,11 +246,29 @@ function App() {
     }
 
     try {
-      const ws = XLSX.utils.json_to_sheet(data.map(row => ({
-        ...row,
-        Date: row.Date && typeof row.Date === 'string' ? new Date(parse(row.Date, 'dd/MM/yyyy', new Date()).setHours(0, 0, 0, 0)) : null,
-        DATE: row.DATE && typeof row.DATE === 'string' ? new Date(parse(row.DATE, 'dd/MM/yyyy', new Date()).setHours(0, 0, 0, 0)) : null
-      })));
+      console.log('Data before export:', data);
+      
+      // Chuyển đổi ngày tháng sang số Excel
+      const excelData = data.map(row => {
+        const newRow = { ...row };
+        if (typeof row.Date === 'string') {
+          const dateParts = row.Date.split('/');
+          if (dateParts.length === 3) {
+            const jsDate = new Date(
+              parseInt(dateParts[2]), // year
+              parseInt(dateParts[1]) - 1, // month (0-11)
+              parseInt(dateParts[0]) // day
+            );
+            // Chuyển đổi JavaScript Date sang số Excel
+            newRow.Date = 25569 + Math.floor((jsDate.getTime() / 86400000));
+          }
+        }
+        return newRow;
+      });
+
+      console.log('Data after conversion:', excelData);
+
+      const ws = XLSX.utils.json_to_sheet(excelData);
       
       if (excelFormat) {
         ws['!ref'] = excelFormat.range;
@@ -261,18 +276,15 @@ function App() {
         ws['!cols'] = excelFormat.cols;
       }
 
-      // Định dạng ngày tháng cho cột Date và DATE
-      for (let row = 0; row < data.length; row++) {
-        const dateCell = ws[XLSX.utils.encode_cell({ r: row + 1, c: headers.indexOf('Date') })];
-        const DATE_Cell = ws[XLSX.utils.encode_cell({ r: row + 1, c: headers.indexOf('DATE') })];
-        
-        if (dateCell) {
-          dateCell.t = 'd';  // Set cell type to date
-          dateCell.z = 'dd/mm/yyyy';  // Set date format
-        }
-        if (DATE_Cell) {
-          DATE_Cell.t = 'd';  // Set cell type to date
-          DATE_Cell.z = 'dd/mm/yyyy';  // Set date format
+      // Định dạng ngày tháng cho cột Date
+      const dateCol = headers.indexOf('Date');
+      if (dateCol !== -1) {
+        for (let row = 1; row <= data.length; row++) {
+          const cellRef = XLSX.utils.encode_cell({ r: row, c: dateCol });
+          if (ws[cellRef]) {
+            ws[cellRef].t = 'n'; // numeric
+            ws[cellRef].z = 'dd/mm/yyyy'; // format as date
+          }
         }
       }
 
