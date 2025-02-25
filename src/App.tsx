@@ -168,7 +168,9 @@ function App() {
 
   const handleInputChange = (field: string, value: string | number) => {
     if (template[field]?.isEditable) {
-      if (field === 'Date') {
+      if (field === 'INSPECTOR') {
+        setSelectedInspector(value as string);
+      } else if (field === 'Date') {
         const date = new Date(value);
         const formattedDate = format(date, 'dd/MM/yyyy');
         setSelectedDate(date);
