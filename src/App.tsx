@@ -19,18 +19,18 @@ import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import * as XLSX from 'xlsx';
 import { format, parse } from 'date-fns';
 
-interface TemplateField {
+type DataRow = {
+  [key: string]: string;
+};
+
+type TemplateField = {
   value: string;
   type?: string;
-}
+};
 
-interface TemplateRow {
+type TemplateRow = {
   [key: string]: TemplateField;
-}
-
-interface DataRow {
-  [key: string]: string;
-}
+};
 
 interface SelectChangeEvent {
   target: {
@@ -66,15 +66,7 @@ function App() {
   const [excelFormat, setExcelFormat] = useState<any>(null);
 
   const formatDate = (date: Date): string => {
-    try {
-      if (!(date instanceof Date) || isNaN(date.getTime())) {
-        return format(new Date(), 'dd/MM/yyyy');
-      }
-      return format(date, 'dd/MM/yyyy');
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return format(new Date(), 'dd/MM/yyyy');
-    }
+    return format(date, 'dd/MM/yyyy');
   };
 
   useEffect(() => {
@@ -116,112 +108,48 @@ function App() {
 
   const loadTemplateFile = async () => {
     try {
-      const response = await fetch(process.env.PUBLIC_URL + '/data/template.xlsx');
+      const response = await fetch(`${process.env.PUBLIC_URL}/template.xlsx`);
       const arrayBuffer = await response.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-
-      const templateRange = worksheet['!ref'] || '';
-      const templateMerges = worksheet['!merges'] || [];
-      const templateCols = worksheet['!cols'] || [];
-
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
-        header: 1,
-        raw: false,
-        defval: null
-      }) as any[];
+      const workbook = XLSX.read(arrayBuffer);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       
-      const originalHeaders = jsonData[0] as string[];
-      const powerAppsIdIndex = originalHeaders.findIndex(header => header === '__PowerAppsId__');
-      let headerRow = originalHeaders.filter((header, index) => {
-        return header && header !== '__PowerAppsId__';
-      });
+      // Đọc dữ liệu với header từ dòng đầu tiên
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
       
-      if (!headerRow.includes('DATE')) {
-        headerRow.push('DATE');
-      }
-      if (!headerRow.includes('Date')) {
-        headerRow.push('Date');
-      }
-      if (!headerRow.includes('INSPECTOR')) {
-        headerRow.push('INSPECTOR');
-      }
+      // Lấy headers từ các key của dòng đầu tiên
+      const headers = Object.keys(jsonData[0] || {}).filter(header => header !== '__EMPTY');
+      setHeaders(headers);
 
-      const orderedHeaders = ['STT', 'Date'];
-      headerRow = [
-        ...orderedHeaders,
-        ...headerRow.filter(header => !orderedHeaders.includes(header))
-      ];
-      
-      setHeaders(headerRow);
-
-      const currentDate = new Date();
-      const formattedDate = formatDate(currentDate);
-
-      const templateRow: TemplateRow = {};
-      headerRow.forEach(header => {
+      // Tạo template với các trường từ headers
+      const templateRow: { [key: string]: { value: string; type?: string } } = {};
+      headers.forEach(header => {
         templateRow[header] = {
-          value: header === 'DATE' || header === 'Date' ? formattedDate : null,
-          isEditable: ['INSPECTOR', 'DATE', 'Status', 'Note', 'Corrective action', 'Target'].includes(header)
+          value: '',
+          type: header === 'Status' ? 'select' : 'text'
         };
       });
-
-      const filteredData = jsonData.slice(1)
-        .filter((row: any[]) => row[originalHeaders.indexOf('STT')])
-        .map((row: any[]) => {
-          const rowData: DataRow = { STT: row[originalHeaders.indexOf('STT')] };
-          headerRow.forEach(header => {
-            if (header === 'Date' || header === 'DATE') {
-              rowData[header] = formattedDate;
-            } else if (header === 'INSPECTOR') {
-              rowData[header] = '';
-            } else {
-              const originalIndex = originalHeaders.indexOf(header);
-              if (originalIndex >= 0 && originalIndex !== powerAppsIdIndex) {
-                rowData[header] = row[originalIndex] || '';
-              }
-            }
-          });
-          return rowData;
-        });
-
       setTemplate(templateRow);
-      setData(filteredData);
-      setExcelFormat({
-        range: templateRange,
-        merges: templateMerges,
-        cols: templateCols
-      });
-      
-      setSelectedInspector('');
-      setSelectedDate(currentDate);
-      setSelectedStt('');
 
-      const tempData = loadTempFile();
-      if (tempData) {
-        try {
-          const { inspector, date } = tempData;
-          if (inspector) {
-            setSelectedInspector(inspector);
+      // Chuyển đổi dữ liệu từ file Excel
+      const rows = jsonData.map((row: any) => {
+        const dataRow: { [key: string]: string } = {};
+        headers.forEach(header => {
+          if (header === 'Date' || header === 'DATE') {
+            dataRow[header] = formatDate(selectedDate);
+          } else {
+            dataRow[header] = String(row[header] || '');
           }
-          if (date) {
-            const parsedDate = new Date(date);
-            if (!isNaN(parsedDate.getTime())) {
-              setSelectedDate(parsedDate);
-              const formattedTempDate = formatDate(parsedDate);
-              setData(prev => prev.map(row => ({
-                ...row,
-                Date: formattedTempDate
-              })));
-            }
-          }
-        } catch (error) {
-          console.error('Error loading temp data:', error);
-        }
-      }
+        });
+        return dataRow;
+      });
+      setData(rows);
+
+      // Lưu định dạng Excel để sử dụng khi xuất file
+      setExcelFormat(workbook);
+
     } catch (error) {
-      console.error('Không thể tải file mẫu:', error);
+      console.error('Error loading template:', error);
+      alert('Không thể tải file template. Vui lòng thử lại!');
     }
   };
 
