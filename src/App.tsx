@@ -143,7 +143,23 @@ function App() {
 
   const loadTemplateFile = async () => {
     try {
-      const response = await fetch(`${process.env.PUBLIC_URL}/template.xlsx`);
+      // Thử tải từ public folder
+      let response = await fetch(`${process.env.PUBLIC_URL}/template.xlsx`);
+      
+      // Nếu không tìm thấy trong public folder, thử tải từ thư mục gốc
+      if (!response.ok) {
+        response = await fetch('/template.xlsx');
+      }
+
+      // Nếu vẫn không tìm thấy, thử tải từ thư mục daily-nightshift-report
+      if (!response.ok) {
+        response = await fetch('/daily-nightshift-report/template.xlsx');
+      }
+
+      if (!response.ok) {
+        throw new Error('Template file not found');
+      }
+
       const arrayBuffer = await response.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -184,9 +200,7 @@ function App() {
       });
       setData(rows);
 
-      // Lưu định dạng Excel để sử dụng khi xuất file
       setExcelFormat(workbook);
-
     } catch (error) {
       console.error('Error loading template:', error);
       alert('Không thể tải file template. Vui lòng thử lại!');
