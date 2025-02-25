@@ -171,12 +171,14 @@ function App() {
       if (field === 'INSPECTOR') {
         setSelectedInspector(value as string);
       } else if (field === 'Date') {
-        const formattedDate = format(new Date(value), 'dd/MM/yyyy');
-        setSelectedDate(new Date(value));
+        const date = new Date(value);
+        const formattedDate = format(date, 'dd/MM/yyyy');
+        setSelectedDate(date);
         // Cập nhật ngày cho tất cả các dòng
         setData(prev => prev.map(row => ({
           ...row,
-          Date: formattedDate
+          Date: formattedDate,
+          DATE: formattedDate // Thêm cập nhật cho trường DATE nếu có
         })));
       }
       setTemplate(prev => ({
@@ -383,7 +385,10 @@ function App() {
                       value={selectedDate}
                       onChange={(newValue) => {
                         if (newValue) {
-                          handleInputChange('Date', newValue.toISOString());
+                          // Chuyển đổi ngày về đầu ngày để tránh vấn đề múi giờ
+                          const date = new Date(newValue);
+                          date.setHours(0, 0, 0, 0);
+                          handleInputChange('Date', date.toISOString());
                         }
                       }}
                       format="dd/MM/yyyy"
