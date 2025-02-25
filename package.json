@@ -1,7 +1,7 @@
 {
   "name": "daily-nightshift-report",
   "version": "1.0.0",
-  "homepage": "https://ThaiBaHoa.github.io/daily-nightshift-report",
+  "homepage": "https://thaibahoa.github.io/daily-nightshift-report",
   "private": true,
   "dependencies": {
     "@azure/msal-browser": "^4.4.0",
