@@ -372,9 +372,9 @@ function App() {
     setTemplate(resetTemplate);
     
     // Chọn dòng tiếp theo nếu có
-    const nextStt = data.find(row => Number(row.STT) > Number(selectedStt))?.STT;
-    if (nextStt) {
-      setSelectedStt(nextStt);
+    const nextRow = data.find(row => Number(row.STT) > Number(selectedStt));
+    if (nextRow?.STT) {
+      setSelectedStt(nextRow.STT.toString());
     }
     
     saveTempFile();
