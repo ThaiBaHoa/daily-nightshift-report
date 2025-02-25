@@ -1,0 +1,49 @@
+{
+  "name": "daily-nightshift-report",
+  "version": "1.0.0",
+  "homepage": "https://ThaiBaHoa.github.io/daily-nightshift-report",
+  "private": true,
+  "dependencies": {
+    "@azure/msal-browser": "^4.4.0",
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "@fontsource/roboto": "^5.1.1",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "@mui/material": "^5.15.0",
+    "@mui/x-date-pickers": "^6.19.4",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/serviceworker": "^0.0.122",
+    "date-fns": "^2.30.0",
+    "gh-pages": "^6.3.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^4.9.5",
+    "workbox-cli": "^7.3.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "react-app-rewired": "^2.2.1",
+    "react-scripts": "5.0.1"
+  },
+  "scripts": {
+    "start": "react-app-rewired start",
+    "build": "react-app-rewired build",
+    "test": "react-app-rewired test",
+    "eject": "react-scripts eject",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
