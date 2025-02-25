@@ -154,7 +154,8 @@ function App() {
   };
 
   const handleInputChange = (field: string, value: string) => {
-    if (template[field]) {
+    if (template[field] && selectedStt) {
+      // Cập nhật template hiện tại
       setTemplate(prev => ({
         ...prev,
         [field]: {
@@ -162,13 +163,26 @@ function App() {
           value: value
         }
       }));
+
+      // Cập nhật data tại dòng tương ứng với selectedStt
+      setData(prev => prev.map(row => {
+        if (row.STT === selectedStt) {
+          return {
+            ...row,
+            [field]: value
+          };
+        }
+        return row;
+      }));
     }
   };
 
   const handleDateChange = (date: Date | null) => {
-    if (date) {
+    if (date && selectedStt) {
       setSelectedDate(date);
       const formattedDate = formatDate(date);
+      
+      // Cập nhật template
       setTemplate(prev => {
         const newTemplate = { ...prev };
         if (newTemplate['Date']) {
@@ -179,13 +193,26 @@ function App() {
         }
         return newTemplate;
       });
+
+      // Cập nhật data tại dòng tương ứng với selectedStt
+      setData(prev => prev.map(row => {
+        if (row.STT === selectedStt) {
+          return {
+            ...row,
+            'Date': formattedDate,
+            'DATE': formattedDate
+          };
+        }
+        return row;
+      }));
     }
   };
 
   const handleInspectorChange = (event: SelectChangeEvent) => {
     const value = event.target.value;
     setSelectedInspector(value);
-    if (template['INSPECTOR']) {
+    if (template['INSPECTOR'] && selectedStt) {
+      // Cập nhật template
       setTemplate(prev => ({
         ...prev,
         'INSPECTOR': {
@@ -193,6 +220,38 @@ function App() {
           value: value
         }
       }));
+
+      // Cập nhật data tại dòng tương ứng với selectedStt
+      setData(prev => prev.map(row => {
+        if (row.STT === selectedStt) {
+          return {
+            ...row,
+            'INSPECTOR': value
+          };
+        }
+        return row;
+      }));
+    }
+  };
+
+  const handleSttChange = (event: SelectChangeEvent) => {
+    const stt = event.target.value;
+    setSelectedStt(stt);
+    
+    // Tìm dòng tương ứng với STT được chọn
+    const selectedRow = data.find(row => row.STT === stt);
+    if (selectedRow) {
+      // Cập nhật template với dữ liệu từ dòng được chọn
+      const updatedTemplate = { ...template };
+      headers.forEach(header => {
+        if (updatedTemplate[header]) {
+          updatedTemplate[header] = {
+            ...updatedTemplate[header],
+            value: selectedRow[header] || ''
+          };
+        }
+      });
+      setTemplate(updatedTemplate);
     }
   };
 
@@ -290,27 +349,6 @@ function App() {
 
   const handleNewTemplate = () => {
     loadTemplateFile();
-  };
-
-  const handleSttChange = (event: SelectChangeEvent) => {
-    const stt = event.target.value;
-    setSelectedStt(stt);
-    
-    // Tìm dòng tương ứng với STT được chọn
-    const selectedRow = data.find(row => row.STT === stt);
-    if (selectedRow) {
-      // Cập nhật template với dữ liệu từ dòng được chọn
-      const updatedTemplate = { ...template };
-      headers.forEach(header => {
-        if (updatedTemplate[header]) {
-          updatedTemplate[header] = {
-            ...updatedTemplate[header],
-            value: selectedRow[header] || ''
-          };
-        }
-      });
-      setTemplate(updatedTemplate);
-    }
   };
 
   return (
