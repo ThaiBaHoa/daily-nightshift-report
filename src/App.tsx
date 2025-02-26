@@ -209,7 +209,7 @@ function App() {
       headers.forEach(header => {
         templateRow[header] = {
           value: '',
-          type: header === 'Status' ? 'select' : 'text'
+          type: ['Status', 'Type', 'TITLE', 'Description'].includes(header) ? 'readonly' : 'text'
         };
       });
       setTemplate(templateRow);
@@ -220,11 +220,14 @@ function App() {
           STT: String(row.STT || ''),
           INSPECTOR: String(row.INSPECTOR || ''),
           Date: formatDate(selectedDate),
-          DATE: formatDate(selectedDate)
+          DATE: formatDate(selectedDate),
+          Type: String(row.Type || ''),
+          TITLE: String(row.TITLE || ''),
+          Description: String(row.Description || '')
         };
         
         headers.forEach(header => {
-          if (!['STT', 'INSPECTOR', 'Date', 'DATE'].includes(header)) {
+          if (!['STT', 'INSPECTOR', 'Date', 'DATE', 'Type', 'TITLE', 'Description'].includes(header)) {
             dataRow[header] = String(row[header] || '');
           }
         });
