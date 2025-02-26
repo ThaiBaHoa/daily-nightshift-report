@@ -12,28 +12,27 @@ import {
   FormControl,
   InputLabel,
   FormHelperText,
-  Stack
+  Stack,
+  Snackbar,
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import * as XLSX from 'xlsx';
 import { format, parse } from 'date-fns';
 
-interface DataRow {
-  STT: string;
-  INSPECTOR: string;
-  Date: string;
-  DATE: string;
-  [key: string]: string;
-}
-
 interface TemplateField {
-  value: string;
-  type?: string;
+  value: string | number | null;
+  isEditable: boolean;
 }
 
 interface TemplateRow {
   [key: string]: TemplateField;
+}
+
+interface DataRow {
+  [key: string]: string | number | null;
 }
 
 interface SelectChangeEvent {
@@ -64,18 +63,77 @@ function App() {
   const [data, setData] = useState<DataRow[]>([]);
   const [template, setTemplate] = useState<TemplateRow>({});
   const [headers, setHeaders] = useState<string[]>([]);
-  const [selectedStt, setSelectedStt] = useState<string>('');
   const [selectedInspector, setSelectedInspector] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedSTT, setSelectedSTT] = useState<number>(1);
   const [excelFormat, setExcelFormat] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'info' | 'warning' | 'error';
+  }>({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
+
+  const showSnackbar = (message: string, severity: 'success' | 'info' | 'warning' | 'error' = 'info') => {
+    setSnackbar({
+      open: true,
+      message,
+      severity
+    });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({
+      ...snackbar,
+      open: false
+    });
+  };
 
   const formatDate = (date: Date): string => {
-    return format(date, 'dd/MM/yyyy');
+    try {
+      if (!(date instanceof Date) || isNaN(date.getTime())) {
+        console.warn('Invalid date provided, using current date as fallback');
+        return format(new Date(), 'dd/MM/yyyy');
+      }
+      return format(date, 'dd/MM/yyyy');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return format(new Date(), 'dd/MM/yyyy');
+    }
+  };
+
+  const parseDate = (dateString: string): Date => {
+    try {
+      // Hỗ trợ nhiều định dạng ngày tháng phổ biến
+      const formats = ['dd/MM/yyyy', 'yyyy-MM-dd', 'MM/dd/yyyy'];
+      
+      for (const formatStr of formats) {
+        try {
+          const parsedDate = parse(dateString, formatStr, new Date());
+          if (!isNaN(parsedDate.getTime())) {
+            return parsedDate;
+          }
+        } catch (e) {
+          // Thử định dạng tiếp theo
+        }
+      }
+      
+      // Nếu không thể parse, trả về ngày hiện tại
+      console.warn(`Không thể parse chuỗi ngày: ${dateString}, sử dụng ngày hiện tại`);
+      return new Date();
+    } catch (error) {
+      console.error('Error parsing date:', error);
+      return new Date();
+    }
   };
 
   useEffect(() => {
     loadTemplateFile();
-    loadTempData();
+    loadTempFile();
   }, []);
 
   const deleteTempFile = () => {
@@ -87,339 +145,392 @@ function App() {
   };
 
   const saveTempFile = () => {
-    try {
-      // Tạo một workbook mới từ data hiện tại
-      const ws = XLSX.utils.json_to_sheet(data, { header: headers });
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+    if (!selectedInspector) return;
 
-      // Lưu file
-      const wbout = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-      const blob = new Blob([wbout], { type: 'application/octet-stream' });
-      
-      // Lưu vào localStorage
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        if (e.target?.result) {
-          localStorage.setItem('tempData', JSON.stringify({
-            data: data,
-            lastModified: new Date().toISOString()
-          }));
-        }
+    try {
+      // Lưu dữ liệu vào localStorage thay vì file tạm
+      const tempData = {
+        data,
+        inspector: selectedInspector,
+        date: selectedDate.toISOString()
       };
-      reader.readAsDataURL(blob);
+      
+      // Kiểm tra kích thước dữ liệu trước khi lưu
+      const tempDataString = JSON.stringify(tempData);
+      const dataSize = new Blob([tempDataString]).size;
+      
+      // Nếu dữ liệu quá lớn (> 5MB), hiển thị cảnh báo
+      if (dataSize > 5 * 1024 * 1024) {
+        console.warn('Dữ liệu tạm quá lớn, có thể gây vấn đề với localStorage');
+      }
+      
+      localStorage.setItem('tempData', tempDataString);
+      console.log('Đã lưu dữ liệu tạm thời thành công');
     } catch (error) {
-      console.error('Error saving temp file:', error);
+      console.error('Error saving temp data:', error);
+      alert('Không thể lưu dữ liệu tạm. Vui lòng thử lại!');
     }
   };
 
-  const loadTempData = () => {
+  const loadTempFile = (): { inspector: string; date: string } | null => {
     try {
-      const tempDataStr = localStorage.getItem('tempData');
-      if (tempDataStr) {
-        const tempData = JSON.parse(tempDataStr);
-        if (tempData.data && Array.isArray(tempData.data)) {
-          setData(tempData.data);
-          if (tempData.data.length > 0) {
-            // Cập nhật template với dữ liệu từ dòng đầu tiên
-            const firstRow = tempData.data[0];
-            const updatedTemplate = { ...template };
-            headers.forEach(header => {
-              if (updatedTemplate[header]) {
-                updatedTemplate[header] = {
-                  ...updatedTemplate[header],
-                  value: firstRow[header] || ''
-                };
-              }
-            });
-            setTemplate(updatedTemplate);
-          }
-        }
+      const tempData = localStorage.getItem('tempData');
+      if (tempData) {
+        return JSON.parse(tempData);
       }
     } catch (error) {
       console.error('Error loading temp data:', error);
     }
+    return null;
   };
 
   const loadTemplateFile = async () => {
+    setLoading(true);
     try {
-      // Thử các đường dẫn khác nhau
-      const possiblePaths = [
-        `${process.env.PUBLIC_URL}/data/template.xlsx`,
-        './data/template.xlsx',
-        '/daily-nightshift-report/data/template.xlsx'
-      ];
-
-      let response;
-      let successPath;
-
-      for (const path of possiblePaths) {
-        try {
-          console.log('Trying path:', path);
-          response = await fetch(path);
-          if (response.ok) {
-            successPath = path;
-            console.log('Successfully loaded from:', path);
-            break;
-          }
-        } catch (err) {
-          console.log('Failed to load from:', path, err);
-        }
-      }
-
-      if (!response || !response.ok) {
-        throw new Error(`Could not load template from any path. Last attempted: ${successPath}`);
-      }
-
-      console.log('Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        url: response.url
-      });
-
+      const response = await fetch(process.env.PUBLIC_URL + '/data/template.xlsx');
       const arrayBuffer = await response.arrayBuffer();
-      console.log('Successfully loaded file, size:', arrayBuffer.byteLength);
-
       const workbook = XLSX.read(arrayBuffer);
-      console.log('Workbook sheets:', workbook.SheetNames);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
 
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      // Lưu lại style và format của template
+      const templateRange = worksheet['!ref'] || '';
+      const templateMerges = worksheet['!merges'] || [];
+      const templateCols = worksheet['!cols'] || [];
+
+      // Chuyển đổi dữ liệu từ file Excel sang JSON
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+        header: 1,
+        raw: false,
+        defval: null
+      }) as any[];
       
-      // Đọc dữ liệu với header từ dòng đầu tiên
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
-      console.log('Parsed data:', jsonData);
+      // Lấy header từ dòng đầu tiên
+      const originalHeaders = jsonData[0] as string[];
+      const powerAppsIdIndex = originalHeaders.findIndex(header => header === '__PowerAppsId__');
+      let headerRow = originalHeaders.filter((header, index) => {
+        return header && header !== '__PowerAppsId__';
+      });
       
-      if (!Array.isArray(jsonData) || jsonData.length === 0) {
-        throw new Error('No data found in template');
+      // Thêm cột Date và INSPECTOR nếu chưa có
+      if (!headerRow.includes('DATE')) {
+        headerRow.push('DATE');
+      }
+      if (!headerRow.includes('Date')) {
+        headerRow.push('Date');
+      }
+      if (!headerRow.includes('INSPECTOR')) {
+        headerRow.push('INSPECTOR');
       }
 
-      // Lấy headers từ các key của dòng đầu tiên
-      const headers = Object.keys(jsonData[0] || {}).filter(header => header !== '__EMPTY');
-      console.log('Headers:', headers);
+      const orderedHeaders = ['STT', 'Date'];
+      headerRow = [
+        ...orderedHeaders,
+        ...headerRow.filter(header => !orderedHeaders.includes(header))
+      ];
       
-      if (headers.length === 0) {
-        throw new Error('No headers found in template');
-      }
+      setHeaders(headerRow);
 
-      setHeaders(headers);
+      // Tạo template row với các trường có thể chỉnh sửa
+      const currentDate = new Date();
+      const formattedDate = formatDate(currentDate);
 
-      // Tạo template với các trường từ headers
       const templateRow: TemplateRow = {};
-      headers.forEach(header => {
+      headerRow.forEach(header => {
         templateRow[header] = {
-          value: '',
-          type: ['Type', 'TITLE', 'Description'].includes(header) ? 'readonly' : 
-                header === 'Status' ? 'select' : 'text'
+          value: header === 'DATE' || header === 'Date' ? formattedDate : null,
+          isEditable: ['INSPECTOR', 'DATE', 'Status', 'Note', 'Corrective action', 'Target'].includes(header)
         };
       });
+
+      // Lọc dữ liệu, chỉ lấy các dòng có STT
+      const filteredData = jsonData.slice(1)
+        .filter((row: any[]) => row[originalHeaders.indexOf('STT')])
+        .map((row: any[]) => {
+          const rowData: { [key: string]: any } = {};
+          headerRow.forEach(header => {
+            if (header === 'Date' || header === 'DATE') {
+              rowData[header] = formattedDate;
+            } else if (header === 'INSPECTOR') {
+              rowData[header] = '';
+            } else {
+              const originalIndex = originalHeaders.indexOf(header);
+              if (originalIndex >= 0 && originalIndex !== powerAppsIdIndex) {
+                rowData[header] = row[originalIndex] || '';
+              }
+            }
+          });
+          return rowData;
+        });
+
+      setData(filteredData);
       setTemplate(templateRow);
 
-      // Chuyển đổi dữ liệu từ file Excel
-      const rows = jsonData.map((row: any) => {
-        const dataRow: DataRow = {
-          STT: String(row.STT || ''),
-          INSPECTOR: String(row.INSPECTOR || ''),
-          Date: formatDate(selectedDate),
-          DATE: formatDate(selectedDate)
-        };
-        
-        headers.forEach(header => {
-          if (!['STT', 'INSPECTOR', 'Date', 'DATE'].includes(header)) {
-            dataRow[header] = String(row[header] || '');
-          }
-        });
-        
-        return dataRow;
+      // Lưu lại format của Excel để sử dụng khi xuất file
+      setExcelFormat({
+        range: templateRange,
+        merges: templateMerges,
+        cols: templateCols
       });
-      setData(rows);
+      
+      // Reset các giá trị khi load template mới
+      setSelectedInspector('');
+      setSelectedDate(currentDate);
+      setSelectedSTT(1);
 
-      setExcelFormat(workbook);
-      console.log('Template loaded successfully');
-    } catch (error: any) {
-      console.error('Detailed error loading template:', error);
-      alert(`Không thể tải file template: ${error.message}`);
+      const tempData = loadTempFile();
+      if (tempData) {
+        try {
+          const { inspector, date } = tempData;
+          if (inspector) {
+            setSelectedInspector(inspector);
+          }
+          if (date) {
+            const parsedDate = parseDate(date);
+            if (!isNaN(parsedDate.getTime())) {
+              setSelectedDate(parsedDate);
+              const formattedTempDate = formatDate(parsedDate);
+              setData(prev => prev.map(row => ({
+                ...row,
+                Date: formattedTempDate
+              })));
+            }
+          }
+        } catch (error) {
+          console.error('Error loading temp data:', error);
+        }
+      }
+      setLoading(false);
+      showSnackbar('Template loaded successfully!');
+    } catch (error) {
+      setLoading(false);
+      console.error('Không thể tải file mẫu:', error);
+      showSnackbar('Failed to load template!', 'error');
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    if (template[field] && selectedStt) {
-      // Cập nhật template hiện tại
-      setTemplate(prev => ({
-        ...prev,
-        [field]: {
-          ...prev[field],
-          value: value
+  const handleInputChange = (field: string, value: string | number | Date) => {
+    if (template[field]?.isEditable) {
+      try {
+        let processedValue: string | number | null;
+        
+        // Xử lý đặc biệt cho trường Date
+        if (field === 'Date' || field === 'DATE') {
+          if (value instanceof Date) {
+            processedValue = formatDate(value);
+          } else if (typeof value === 'string') {
+            const parsedDate = parseDate(value);
+            processedValue = formatDate(parsedDate);
+          } else {
+            processedValue = null;
+          }
+        } else if (field === 'STT' && typeof value === 'string') {
+          // Xử lý đặc biệt cho các trường số
+          const numValue = parseInt(value);
+          processedValue = !isNaN(numValue) ? numValue : null;
+        } else {
+          // Các trường khác
+          processedValue = value as string | number;
         }
-      }));
-
-      // Cập nhật data tại dòng tương ứng với selectedStt
-      setData(prev => prev.map(row => {
-        if (row.STT === selectedStt) {
-          return {
-            ...row,
-            [field]: value
-          };
+        
+        setTemplate(prev => ({
+          ...prev,
+          [field]: {
+            ...prev[field],
+            value: processedValue
+          }
+        }));
+        
+        // Nếu trường là INSPECTOR, cập nhật selectedInspector
+        if (field === 'INSPECTOR' && typeof value === 'string') {
+          setSelectedInspector(value);
         }
-        return row;
-      }));
+        
+        // Lưu dữ liệu tạm sau khi thay đổi
+        saveTempFile();
+      } catch (error) {
+        console.error(`Error processing input for field ${field}:`, error);
+        showSnackbar(`Lỗi khi cập nhật trường ${field}`, 'error');
+      }
     }
   };
 
   const handleDateChange = (date: Date | null) => {
-    if (date && selectedStt) {
-      setSelectedDate(date);
+    if (date && !isNaN(date.getTime())) {
       const formattedDate = formatDate(date);
       
-      // Cập nhật template
-      setTemplate(prev => {
-        const newTemplate = { ...prev };
-        if (newTemplate['Date']) {
-          newTemplate['Date'].value = formattedDate;
-        }
-        if (newTemplate['DATE']) {
-          newTemplate['DATE'].value = formattedDate;
-        }
-        return newTemplate;
-      });
-
-      // Cập nhật data tại dòng tương ứng với selectedStt
-      setData(prev => prev.map(row => {
-        if (row.STT === selectedStt) {
-          return {
-            ...row,
-            'Date': formattedDate,
-            'DATE': formattedDate
-          };
-        }
-        return row;
-      }));
-    }
-  };
-
-  const handleInspectorChange = (event: SelectChangeEvent) => {
-    const value = event.target.value;
-    setSelectedInspector(value);
-    if (template['INSPECTOR'] && selectedStt) {
-      // Cập nhật template
+      // Cập nhật selectedDate
+      setSelectedDate(date);
+      
+      // Cập nhật giá trị DATE và Date trong template
       setTemplate(prev => ({
         ...prev,
-        'INSPECTOR': {
-          ...prev['INSPECTOR'],
-          value: value
+        'DATE': {
+          ...prev['DATE'],
+          value: formattedDate
+        },
+        'Date': {
+          ...prev['Date'],
+          value: formattedDate
         }
       }));
 
-      // Cập nhật data tại dòng tương ứng với selectedStt
-      setData(prev => prev.map(row => {
-        if (row.STT === selectedStt) {
-          return {
-            ...row,
-            'INSPECTOR': value
-          };
-        }
-        return row;
-      }));
+      // Cập nhật giá trị Date trong tất cả các dòng data
+      setData(prev => prev.map(row => ({
+        ...row,
+        'DATE': formattedDate,
+        'Date': formattedDate
+      })));
+
+      // Lưu dữ liệu tạm
+      saveTempFile();
     }
   };
 
-  const handleSttChange = (event: SelectChangeEvent) => {
-    const stt = event.target.value;
-    setSelectedStt(stt);
-    
-    // Tìm dòng tương ứng với STT được chọn
-    const selectedRow = data.find(row => String(row.STT) === String(stt));
-    if (selectedRow) {
-      // Cập nhật template với dữ liệu từ dòng được chọn
-      const updatedTemplate = { ...template };
-      headers.forEach(header => {
-        if (updatedTemplate[header]) {
-          updatedTemplate[header] = {
-            ...updatedTemplate[header],
-            value: selectedRow[header] || ''
-          };
-        }
-      });
-      setTemplate(updatedTemplate);
-    }
-  };
-
-  const handleExportExcel = () => {
+  const exportToExcel = () => {
+    setLoading(true);
     try {
-      // Tạo một workbook mới từ data hiện tại
-      const ws = XLSX.utils.json_to_sheet(data, { header: headers });
+      if (!selectedInspector) {
+        showSnackbar('Vui lòng chọn INSPECTOR trước khi xuất file!', 'warning');
+        setLoading(false);
+        return;
+      }
+
+      // Kiểm tra xem có dữ liệu để xuất không
+      const hasData = data.some(row => 
+        Object.values(row).some(value => 
+          value !== null && value !== undefined && value !== ''
+        )
+      );
+
+      if (!hasData) {
+        showSnackbar('Không có dữ liệu để xuất!', 'warning');
+        setLoading(false);
+        return;
+      }
+
+      // Lọc bỏ cột DATE khỏi headers khi xuất Excel
+      const excelHeaders = headers.filter(header => header !== 'DATE');
+      const ws = XLSX.utils.aoa_to_sheet([excelHeaders]);
+
+      const formattedDate = formatDate(selectedDate);
+      const rows = data.map(row => {
+        return excelHeaders.map(header => {
+          if (header === 'Date') {
+            return formattedDate;
+          }
+          if (header === 'INSPECTOR') {
+            return selectedInspector;
+          }
+          return row[header] || '';
+        });
+      });
+
+      XLSX.utils.sheet_add_aoa(ws, rows, { origin: -1 });
+
+      // Thêm style cho worksheet
+      ws['!cols'] = excelHeaders.map(() => ({ wch: 15 })); // Đặt chiều rộng cột
+      
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-
-      // Xuất file
-      XLSX.writeFile(wb, `daily_report_${format(selectedDate, 'dd-MM-yyyy')}.xlsx`);
+      
+      const fileName = `Daily Nightshift report_${formattedDate.replace(/\//g, '')}_${selectedInspector}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      
+      showSnackbar('File đã được xuất thành công!', 'success');
+      deleteTempFile();
+      setLoading(false);
     } catch (error) {
       console.error('Error exporting file:', error);
-      alert('Không thể xuất file. Vui lòng thử lại!');
+      showSnackbar('Có lỗi khi xuất file. Vui lòng thử lại!', 'error');
+      setLoading(false);
     }
   };
 
   const handleSubmit = () => {
-    if (!selectedStt) {
-      alert('Vui lòng chọn STT!');
-      return;
-    }
-
     if (!selectedInspector) {
       alert('Vui lòng chọn INSPECTOR!');
       return;
     }
 
-    // Tìm index của dòng cần cập nhật
-    const rowIndex = data.findIndex(row => String(row.STT) === String(selectedStt));
+    // Tạo một bản sao của dữ liệu hiện tại
+    const updatedData = [...data];
+    const rowIndex = updatedData.findIndex(row => Number(row.STT) === selectedSTT);
+    
     if (rowIndex === -1) {
-      alert('Không tìm thấy dòng tương ứng với STT!');
+      console.error('Không tìm thấy STT:', selectedSTT);
       return;
     }
 
-    // Tạo bản sao của data hiện tại
-    const updatedData = [...data];
-    
-    // Cập nhật dữ liệu cho dòng được chọn
-    const updatedRow: DataRow = { 
-      ...updatedData[rowIndex],
-      STT: selectedStt,
-      INSPECTOR: selectedInspector,
-      Date: formatDate(selectedDate),
-      DATE: formatDate(selectedDate)
-    };
-
-    // Cập nhật các trường khác từ template
+    // Cập nhật dữ liệu cho dòng hiện tại
+    const updatedRow = { ...updatedData[rowIndex] };
     headers.forEach(header => {
-      if (template[header]) {
+      if (header === 'INSPECTOR' && selectedInspector) {
+        updatedRow[header] = selectedInspector;
+      } else if ((header === 'Date' || header === 'DATE') && selectedDate) {
+        updatedRow[header] = formatDate(selectedDate);
+      } else if (header === 'Status') {
+        updatedRow[header] = template[header].value || 'Not Check';
+      } else if (template[header]?.isEditable) {
         updatedRow[header] = template[header].value;
       }
     });
 
-    // Cập nhật dòng vào data
+    // Cập nhật dòng trong mảng dữ liệu
     updatedData[rowIndex] = updatedRow;
     setData(updatedData);
+    
+    // Reset các trường có thể chỉnh sửa, ngoại trừ INSPECTOR và Date
+    const resetTemplate = { ...template };
+    headers.forEach(header => {
+      if (resetTemplate[header]?.isEditable && 
+          header !== 'INSPECTOR' && 
+          header !== 'Date' && 
+          header !== 'DATE') {
+        resetTemplate[header].value = null;
+      }
+    });
+    setTemplate(resetTemplate);
+    
+    // Tự động chuyển sang STT tiếp theo
+    if (selectedSTT < data.length) {
+      setSelectedSTT(selectedSTT + 1);
+    }
 
     // Lưu dữ liệu tạm
     saveTempFile();
-
-    alert('Đã cập nhật dữ liệu thành công!');
-
-    // Chọn dòng tiếp theo nếu có
-    const nextRow = data.find(row => Number(row.STT) > Number(selectedStt));
-    if (nextRow?.STT) {
-      setSelectedStt(String(nextRow.STT));
-    }
+    showSnackbar('Data submitted successfully!');
   };
 
   const handleNewTemplate = () => {
     loadTemplateFile();
   };
 
+  const handleSTTChange = (stt: number) => {
+    if (stt >= 1 && stt <= data.length) {
+      setSelectedSTT(stt);
+      
+      // Cập nhật template với dữ liệu của dòng được chọn
+      const selectedRow = data.find(row => Number(row.STT) === stt);
+      if (selectedRow) {
+        const updatedTemplate = { ...template };
+        headers.forEach(header => {
+          if (updatedTemplate[header]) {
+            updatedTemplate[header] = {
+              ...updatedTemplate[header],
+              value: selectedRow[header] || null
+            };
+          }
+        });
+        setTemplate(updatedTemplate);
+      }
+    }
+  };
+
   return (
-    <Container maxWidth="sm">
+    <Container maxWidth="md">
       <Box sx={{ my: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
+        <Typography variant="h4" component="h1" gutterBottom align="center">
           Nhập dữ liệu Excel
         </Typography>
         
@@ -429,30 +540,11 @@ function App() {
               <FormControl fullWidth>
                 <InputLabel>STT</InputLabel>
                 <Select
-                  value={selectedStt}
-                  onChange={(e) => {
-                    const stt = e.target.value;
-                    setSelectedStt(stt);
-                    
-                    // Tìm dòng dữ liệu tương ứng
-                    const selectedRow = data.find(row => row.STT === stt);
-                    if (selectedRow) {
-                      // Cập nhật template với dữ liệu từ dòng được chọn
-                      const updatedTemplate = { ...template };
-                      headers.forEach(header => {
-                        if (updatedTemplate[header]) {
-                          updatedTemplate[header] = {
-                            ...updatedTemplate[header],
-                            value: selectedRow[header] || ''
-                          };
-                        }
-                      });
-                      setTemplate(updatedTemplate);
-                    }
-                  }}
+                  value={selectedSTT}
+                  onChange={(e) => handleSTTChange(Number(e.target.value))}
                 >
-                  {data.map((row) => (
-                    <MenuItem key={row.STT} value={row.STT}>
+                  {data.map((row, index) => (
+                    <MenuItem key={index} value={Number(row.STT || 0)}>
                       {row.STT}
                     </MenuItem>
                   ))}
@@ -465,11 +557,7 @@ function App() {
                 <InputLabel>Inspector</InputLabel>
                 <Select
                   value={selectedInspector}
-                  onChange={(e) => {
-                    const inspector = e.target.value;
-                    setSelectedInspector(inspector);
-                    handleInputChange('INSPECTOR', inspector);
-                  }}
+                  onChange={(e) => handleInputChange('INSPECTOR', e.target.value)}
                 >
                   {INSPECTORS.map((inspector) => (
                     <MenuItem key={inspector} value={inspector}>
@@ -477,81 +565,92 @@ function App() {
                     </MenuItem>
                   ))}
                 </Select>
+                <FormHelperText>Bắt buộc</FormHelperText>
               </FormControl>
             </Grid>
-
+            
             <Grid item xs={12} md={4}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
-                  label="Date"
+                  label="Date *"
                   value={selectedDate}
                   onChange={handleDateChange}
                   format="dd/MM/yyyy"
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      error: !selectedDate,
+                      helperText: !selectedDate ? 'Bắt buộc' : ''
+                    }
+                  }}
                 />
               </LocalizationProvider>
             </Grid>
 
-            {headers.map((header) => {
-              if (!['STT', 'INSPECTOR', 'Date', 'DATE'].includes(header) && template[header]) {
-                if (template[header].type === 'select') {
-                  return (
-                    <Grid item xs={12} md={4} key={header}>
-                      <FormControl fullWidth>
-                        <InputLabel>{header}</InputLabel>
-                        <Select
-                          value={template[header].value}
-                          onChange={(e) => handleInputChange(header, e.target.value)}
-                        >
-                          {STATUS_OPTIONS.map((option) => (
-                            <MenuItem key={option} value={option}>
-                              {option}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                  );
-                } else if (template[header].type === 'readonly') {
-                  return (
-                    <Grid item xs={12} md={4} key={header}>
-                      <TextField
-                        fullWidth
-                        label={header}
-                        value={template[header].value}
-                        InputProps={{
-                          readOnly: true,
-                        }}
-                      />
-                    </Grid>
-                  );
-                } else {
-                  return (
-                    <Grid item xs={12} md={4} key={header}>
-                      <TextField
-                        fullWidth
-                        label={header}
-                        value={template[header].value}
-                        onChange={(e) => handleInputChange(header, e.target.value)}
-                      />
-                    </Grid>
-                  );
-                }
-              }
-              return null;
-            })}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Target"
+                value={template['Target']?.value as string || ''}
+                onChange={(e) => handleInputChange('Target', e.target.value)}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Note"
+                value={template['Note']?.value as string || ''}
+                onChange={(e) => handleInputChange('Note', e.target.value)}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Corrective action"
+                value={template['Corrective action']?.value as string || ''}
+                onChange={(e) => handleInputChange('Corrective action', e.target.value)}
+              />
+            </Grid>
+
+            {headers
+              .filter(header => !['STT', 'INSPECTOR', 'Status', 'Date', 'Note', 'Corrective action', 'Target'].includes(header))
+              .map((header) => {
+                const currentRow = data.find(row => Number(row.STT) === selectedSTT);
+                return (
+                  <Grid item xs={12} key={header}>
+                    <TextField
+                      fullWidth
+                      label={header}
+                      value={currentRow?.[header] || ''}
+                      InputProps={{
+                        readOnly: true,
+                      }}
+                    />
+                  </Grid>
+                );
+              })}
+            
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={template['Status']?.value as string || ''}
+                  onChange={(e) => handleInputChange('Status', e.target.value)}
+                >
+                  {STATUS_OPTIONS.map((option) => (
+                    <MenuItem key={option} value={option}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
           </Grid>
         </Paper>
-
-        <Stack direction="row" spacing={2} justifyContent="flex-end">
-          <Button variant="contained" onClick={saveTempFile}>
-            Save Temp
-          </Button>
-          <Button variant="contained" onClick={deleteTempFile}>
-            Delete Temp
-          </Button>
-        </Stack>
-
-        <Stack direction="row" spacing={2} justifyContent="flex-end" sx={{ mt: 2 }}>
+        
+        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
           <Button
             fullWidth
             variant="contained"
@@ -564,11 +663,84 @@ function App() {
             fullWidth
             variant="contained"
             color="secondary"
-            onClick={handleExportExcel}
+            onClick={exportToExcel}
           >
             Xuất File
           </Button>
         </Stack>
+        
+        <Stack direction="row" spacing={2}>
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={saveTempFile}
+          >
+            Save Temp
+          </Button>
+          <Button
+            fullWidth
+            variant="outlined"
+            color="error"
+            onClick={deleteTempFile}
+          >
+            Delete Temp
+          </Button>
+        </Stack>
+        
+        {data.length > 0 && (
+          <Box sx={{ mt: 4, overflowX: 'auto' }}>
+            <Typography variant="h6" gutterBottom>
+              Preview
+            </Typography>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  {headers
+                    .filter(header => header !== 'DATE')
+                    .map((header) => (
+                      <th key={header} style={{ padding: 8, borderBottom: '1px solid #ddd', textAlign: 'left' }}>
+                        {header}
+                      </th>
+                    ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((row, index) => (
+                  <tr key={index}>
+                    {headers
+                      .filter(header => header !== 'DATE')
+                      .map((header) => (
+                        <td key={header} style={{ padding: 8, borderBottom: '1px solid #ddd' }}>
+                          {header === 'Date' 
+                            ? formatDate(selectedDate)
+                            : row[header] || ''}
+                        </td>
+                      ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Box>
+        )}
+        
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={handleCloseSnackbar}
+        >
+          <Alert
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+        
+        {loading && (
+          <Box sx={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+            <CircularProgress />
+          </Box>
+        )}
       </Box>
     </Container>
   );
