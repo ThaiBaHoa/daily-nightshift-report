@@ -209,7 +209,8 @@ function App() {
       headers.forEach(header => {
         templateRow[header] = {
           value: '',
-          type: ['Status', 'Type', 'TITLE', 'Description'].includes(header) ? 'readonly' : 'text'
+          type: ['Type', 'TITLE', 'Description'].includes(header) ? 'readonly' : 
+                header === 'Status' ? 'select' : 'text'
         };
       });
       setTemplate(templateRow);
@@ -220,14 +221,11 @@ function App() {
           STT: String(row.STT || ''),
           INSPECTOR: String(row.INSPECTOR || ''),
           Date: formatDate(selectedDate),
-          DATE: formatDate(selectedDate),
-          Type: String(row.Type || ''),
-          TITLE: String(row.TITLE || ''),
-          Description: String(row.Description || '')
+          DATE: formatDate(selectedDate)
         };
         
         headers.forEach(header => {
-          if (!['STT', 'INSPECTOR', 'Date', 'DATE', 'Type', 'TITLE', 'Description'].includes(header)) {
+          if (!['STT', 'INSPECTOR', 'Date', 'DATE'].includes(header)) {
             dataRow[header] = String(row[header] || '');
           }
         });
@@ -426,202 +424,151 @@ function App() {
         </Typography>
         
         <Paper sx={{ p: 2, mb: 2 }}>
-          <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-            <Button
-              variant="contained"
-              onClick={handleNewTemplate}
-            >
-              Mở Template Mới
-            </Button>
-          </Stack>
-
-          {headers.length > 0 && (
-            <Box component="form" noValidate sx={{ mt: 2 }}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={4}>
-                  <FormControl fullWidth>
-                    <InputLabel id="stt-select-label">STT</InputLabel>
-                    <Select
-                      labelId="stt-select-label"
-                      id="stt-select"
-                      value={selectedStt || ''}
-                      label="STT"
-                      onChange={handleSttChange}
-                    >
-                      {data.map((row) => row.STT && (
-                        <MenuItem key={row.STT} value={row.STT}>
-                          {row.STT}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12} sm={4}>
-                  <FormControl fullWidth>
-                    <InputLabel id="inspector-select-label">INSPECTOR</InputLabel>
-                    <Select
-                      labelId="inspector-select-label"
-                      id="inspector-select"
-                      value={selectedInspector}
-                      label="INSPECTOR"
-                      onChange={handleInspectorChange}
-                      required
-                    >
-                      {INSPECTORS.map((inspector) => (
-                        <MenuItem key={inspector} value={inspector}>
-                          {inspector}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    <FormHelperText>Chọn người kiểm tra</FormHelperText>
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <FormControl fullWidth>
-                    <InputLabel id="status-label">Status *</InputLabel>
-                    <Select
-                      labelId="status-label"
-                      value={(template['Status']?.value || '').toString()}
-                      label="Status *"
-                      onChange={(e: SelectChangeEvent) => handleInputChange('Status', e.target.value)}
-                      required
-                    >
-                      {STATUS_OPTIONS.map((status) => (
-                        <MenuItem key={status} value={status}>
-                          {status}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    <FormHelperText>Chọn trạng thái kiểm tra</FormHelperText>
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <DatePicker
-                      label="Date *"
-                      value={selectedDate}
-                      onChange={handleDateChange}
-                      format="dd/MM/yyyy"
-                      slotProps={{
-                        textField: {
-                          fullWidth: true,
-                          required: true,
-                          helperText: 'Chọn ngày kiểm tra (áp dụng cho tất cả các dòng)',
-                          sx: { width: '100%' }
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel>STT</InputLabel>
+                <Select
+                  value={selectedStt}
+                  onChange={(e) => {
+                    const stt = e.target.value;
+                    setSelectedStt(stt);
+                    
+                    // Tìm dòng dữ liệu tương ứng
+                    const selectedRow = data.find(row => row.STT === stt);
+                    if (selectedRow) {
+                      // Cập nhật template với dữ liệu từ dòng được chọn
+                      const updatedTemplate = { ...template };
+                      headers.forEach(header => {
+                        if (updatedTemplate[header]) {
+                          updatedTemplate[header] = {
+                            ...updatedTemplate[header],
+                            value: selectedRow[header] || ''
+                          };
                         }
-                      }}
-                    />
-                  </LocalizationProvider>
-                </Grid>
+                      });
+                      setTemplate(updatedTemplate);
+                    }
+                  }}
+                >
+                  {data.map((row) => (
+                    <MenuItem key={row.STT} value={row.STT}>
+                      {row.STT}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel>Inspector</InputLabel>
+                <Select
+                  value={selectedInspector}
+                  onChange={(e) => {
+                    const inspector = e.target.value;
+                    setSelectedInspector(inspector);
+                    handleInputChange('INSPECTOR', inspector);
+                  }}
+                >
+                  {INSPECTORS.map((inspector) => (
+                    <MenuItem key={inspector} value={inspector}>
+                      {inspector}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
 
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Target"
-                    value={template['Target']?.value as string || ''}
-                    onChange={(e) => handleInputChange('Target', e.target.value)}
-                  />
-                </Grid>
+            <Grid item xs={12} md={4}>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <DatePicker
+                  label="Date"
+                  value={selectedDate}
+                  onChange={handleDateChange}
+                  format="dd/MM/yyyy"
+                />
+              </LocalizationProvider>
+            </Grid>
 
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Note"
-                    value={template['Note']?.value as string || ''}
-                    onChange={(e) => handleInputChange('Note', e.target.value)}
-                  />
-                </Grid>
-
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Corrective action"
-                    value={template['Corrective action']?.value as string || ''}
-                    onChange={(e) => handleInputChange('Corrective action', e.target.value)}
-                  />
-                </Grid>
-
-                {headers
-                  .filter(header => !['STT', 'INSPECTOR', 'Status', 'Date', 'Note', 'Corrective action', 'Target'].includes(header))
-                  .map((header) => {
-                    const currentRow = data.find(row => String(row.STT) === String(selectedStt));
-                    return (
-                      <Grid item xs={12} key={header}>
-                        <TextField
-                          fullWidth
-                          label={header}
-                          value={template[header]?.value || ''}
+            {headers.map((header) => {
+              if (!['STT', 'INSPECTOR', 'Date', 'DATE'].includes(header) && template[header]) {
+                if (template[header].type === 'select') {
+                  return (
+                    <Grid item xs={12} md={4} key={header}>
+                      <FormControl fullWidth>
+                        <InputLabel>{header}</InputLabel>
+                        <Select
+                          value={template[header].value}
                           onChange={(e) => handleInputChange(header, e.target.value)}
-                          helperText="Cần nhập"
-                          required
-                        />
-                      </Grid>
-                    );
-                  })}
-              </Grid>
-              
-              <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  color="primary"
-                  onClick={handleSubmit}
-                >
-                  Cập nhật dữ liệu
-                </Button>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  color="secondary"
-                  onClick={handleExportExcel}
-                >
-                  Xuất File
-                </Button>
-              </Stack>
-            </Box>
-          )}
+                        >
+                          {STATUS_OPTIONS.map((option) => (
+                            <MenuItem key={option} value={option}>
+                              {option}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  );
+                } else if (template[header].type === 'readonly') {
+                  return (
+                    <Grid item xs={12} md={4} key={header}>
+                      <TextField
+                        fullWidth
+                        label={header}
+                        value={template[header].value}
+                        InputProps={{
+                          readOnly: true,
+                        }}
+                      />
+                    </Grid>
+                  );
+                } else {
+                  return (
+                    <Grid item xs={12} md={4} key={header}>
+                      <TextField
+                        fullWidth
+                        label={header}
+                        value={template[header].value}
+                        onChange={(e) => handleInputChange(header, e.target.value)}
+                      />
+                    </Grid>
+                  );
+                }
+              }
+              return null;
+            })}
+          </Grid>
         </Paper>
 
-        {data.length > 0 && (
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Dữ liệu hiện tại
-            </Typography>
-            <Box sx={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    {headers
-                      .filter(header => header !== 'DATE')
-                      .map((header) => (
-                        <th key={header} style={{ padding: 8, borderBottom: '1px solid #ddd' }}>
-                          {header}
-                        </th>
-                      ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.map((row, index) => (
-                    <tr key={index} style={{ backgroundColor: row.STT === selectedStt ? '#f5f5f5' : 'transparent' }}>
-                      {headers
-                        .filter(header => header !== 'DATE')
-                        .map((header) => (
-                          <td key={header} style={{ padding: 8, borderBottom: '1px solid #ddd' }}>
-                            {header === 'Date' 
-                              ? formatDate(selectedDate)
-                              : row[header] || ''}
-                          </td>
-                        ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Box>
-          </Paper>
-        )}
+        <Stack direction="row" spacing={2} justifyContent="flex-end">
+          <Button variant="contained" onClick={saveTempFile}>
+            Save Temp
+          </Button>
+          <Button variant="contained" onClick={deleteTempFile}>
+            Delete Temp
+          </Button>
+        </Stack>
+
+        <Stack direction="row" spacing={2} justifyContent="flex-end" sx={{ mt: 2 }}>
+          <Button
+            fullWidth
+            variant="contained"
+            color="primary"
+            onClick={handleSubmit}
+          >
+            Cập nhật dữ liệu
+          </Button>
+          <Button
+            fullWidth
+            variant="contained"
+            color="secondary"
+            onClick={handleExportExcel}
+          >
+            Xuất File
+          </Button>
+        </Stack>
       </Box>
     </Container>
   );
