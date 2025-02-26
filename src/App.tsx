@@ -143,21 +143,40 @@ function App() {
 
   const loadTemplateFile = async () => {
     try {
-      const templatePath = `${process.env.PUBLIC_URL}/data/template.xlsx`;
-      console.log('Trying to load template from:', templatePath);
-      
-      // Tải template từ thư mục data
-      const response = await fetch(templatePath);
+      // Thử các đường dẫn khác nhau
+      const possiblePaths = [
+        `${process.env.PUBLIC_URL}/data/template.xlsx`,
+        './data/template.xlsx',
+        '/daily-nightshift-report/data/template.xlsx'
+      ];
+
+      let response;
+      let successPath;
+
+      for (const path of possiblePaths) {
+        try {
+          console.log('Trying path:', path);
+          response = await fetch(path);
+          if (response.ok) {
+            successPath = path;
+            console.log('Successfully loaded from:', path);
+            break;
+          }
+        } catch (err) {
+          console.log('Failed to load from:', path, err);
+        }
+      }
+
+      if (!response || !response.ok) {
+        throw new Error(`Could not load template from any path. Last attempted: ${successPath}`);
+      }
+
       console.log('Response:', {
         status: response.status,
         statusText: response.statusText,
         ok: response.ok,
         url: response.url
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to load template. Status: ${response.status}, URL: ${response.url}`);
-      }
 
       const arrayBuffer = await response.arrayBuffer();
       console.log('Successfully loaded file, size:', arrayBuffer.byteLength);
