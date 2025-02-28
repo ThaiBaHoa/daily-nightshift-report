@@ -164,13 +164,18 @@ function App() {
   const deleteTempFile = () => {
     try {
       localStorage.removeItem('tempData');
+      showSnackbar('Đã xóa dữ liệu tạm thành công!', 'success');
     } catch (error) {
       console.error('Error deleting temp data:', error);
+      showSnackbar('Không thể xóa dữ liệu tạm!', 'error');
     }
   };
 
   const saveTempFile = () => {
-    if (!selectedInspector) return;
+    if (!selectedInspector) {
+      showSnackbar('Vui lòng nhập tên INSPECTOR trước khi lưu!', 'warning');
+      return;
+    }
 
     try {
       // Lưu dữ liệu vào localStorage thay vì file tạm
@@ -192,9 +197,10 @@ function App() {
       
       localStorage.setItem('tempData', tempDataString);
       console.log('Đã lưu dữ liệu tạm thời thành công');
+      showSnackbar('Đã lưu dữ liệu tạm thành công!', 'success');
     } catch (error) {
       console.error('Error saving temp data:', error);
-      alert('Không thể lưu dữ liệu tạm. Vui lòng thử lại!');
+      showSnackbar('Không thể lưu dữ liệu tạm. Vui lòng thử lại!', 'error');
     }
   };
 

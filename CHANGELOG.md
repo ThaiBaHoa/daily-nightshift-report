@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.5] - 2025-03-01
+
+### Added
+- Thêm thông báo (snackbar) khi thực hiện các thao tác Save Temp và Delete Temp
+- Hiển thị cảnh báo khi người dùng cố gắng lưu dữ liệu tạm mà chưa nhập INSPECTOR
+
+### Changed
+- Thay thế thông báo alert bằng snackbar cho thao tác Save Temp khi có lỗi
+
 ## [1.3.4] - 2025-03-01
 
 ### Changed
