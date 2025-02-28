@@ -577,7 +577,14 @@ function App() {
 
     // Cập nhật dòng trong mảng dữ liệu
     updatedData[rowIndex] = updatedRow;
-    setData(updatedData);
+    
+    // Cập nhật INSPECTOR cho tất cả các dòng
+    const allUpdatedData = updatedData.map(row => ({
+      ...row,
+      INSPECTOR: selectedInspector
+    }));
+    
+    setData(allUpdatedData);
     
     // Reset các trường có thể chỉnh sửa, ngoại trừ INSPECTOR và Date
     const resetTemplate = { ...template };
@@ -873,6 +880,40 @@ function App() {
             </Grid>
 
             <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={template['Status']?.value as string || ''}
+                  onChange={(e) => handleInputChange('Status', e.target.value)}
+                >
+                  {STATUS_OPTIONS.map((option) => (
+                    <MenuItem key={option} value={option}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {headers
+              .filter(header => !['STT', 'INSPECTOR', 'Status', 'Date', 'Note', 'Corrective action', 'Target', 'attachment'].includes(header))
+              .map((header) => {
+                const currentRow = data.find(row => Number(row.STT) === selectedSTT);
+                return (
+                  <Grid item xs={12} key={header}>
+                    <TextField
+                      fullWidth
+                      label={header}
+                      value={currentRow?.[header] || ''}
+                      InputProps={{
+                        readOnly: true,
+                      }}
+                    />
+                  </Grid>
+                );
+              })}
+
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 label="Target"
@@ -897,40 +938,6 @@ function App() {
                 value={template['Corrective action']?.value as string || ''}
                 onChange={(e) => handleInputChange('Corrective action', e.target.value)}
               />
-            </Grid>
-
-            {headers
-              .filter(header => !['STT', 'INSPECTOR', 'Status', 'Date', 'Note', 'Corrective action', 'Target'].includes(header))
-              .map((header) => {
-                const currentRow = data.find(row => Number(row.STT) === selectedSTT);
-                return (
-                  <Grid item xs={12} key={header}>
-                    <TextField
-                      fullWidth
-                      label={header}
-                      value={currentRow?.[header] || ''}
-                      InputProps={{
-                        readOnly: true,
-                      }}
-                    />
-                  </Grid>
-                );
-              })}
-            
-            <Grid item xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={template['Status']?.value as string || ''}
-                  onChange={(e) => handleInputChange('Status', e.target.value)}
-                >
-                  {STATUS_OPTIONS.map((option) => (
-                    <MenuItem key={option} value={option}>
-                      {option}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
             </Grid>
             
             <Grid item xs={12}>
