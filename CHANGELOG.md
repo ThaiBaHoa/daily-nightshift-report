@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.4] - 2025-03-01
+
+### Changed
+- Tăng kích thước ảnh trong Excel thêm 15% (từ 80px lên 92px)
+- Điều chỉnh vị trí ảnh trong Excel để tránh hiện tượng chồng lên nhau
+- Tăng khoảng cách giữa các ảnh trong lưới 2x2 (từ 0.5 lên 0.6)
+
 ## [1.3.3] - 2025-03-01
 
 ### Changed

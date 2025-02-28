@@ -531,8 +531,9 @@ function App() {
             const imagesToProcess = attachments.slice(0, maxImagesPerRow);
             
             // Tính toán kích thước và vị trí cho mỗi ảnh
-            const imageWidth = 80; // Chiều rộng cơ bản cho mỗi ảnh
-            const imageHeight = 80; // Chiều cao cơ bản cho mỗi ảnh
+            // Tăng kích thước ảnh thêm 15%
+            const imageWidth = 92; // 80 + 15% = 92
+            const imageHeight = 92; // 80 + 15% = 92
             
             // Sắp xếp ảnh theo lưới 2x2 nếu có nhiều ảnh
             imagesToProcess.forEach((attachment, imgIndex) => {
@@ -546,11 +547,12 @@ function App() {
                   extension: 'jpeg',
                 });
                 
-                // Tính toán vị trí dựa trên chỉ số ảnh
+                // Tính toán vị trí dựa trên chỉ số ảnh với khoảng cách lớn hơn để tránh chồng lên nhau
                 // Sắp xếp theo lưới 2x2: 0 1
                 //                        2 3
-                const col = attachmentColIndex + (imgIndex % 2) * 0.5; // 0, 0.5, 0, 0.5
-                const row = (rowIndex + 1) + Math.floor(imgIndex / 2) * 0.5; // Dòng + 0, 0, 0.5, 0.5
+                // Tăng khoảng cách giữa các ảnh
+                const col = attachmentColIndex + (imgIndex % 2) * 0.6; // 0, 0.6, 0, 0.6
+                const row = (rowIndex + 1) + Math.floor(imgIndex / 2) * 0.6; // Dòng + 0, 0, 0.6, 0.6
                 
                 // Thêm ảnh vào worksheet với vị trí đã tính
                 worksheet.addImage(imageId, {
