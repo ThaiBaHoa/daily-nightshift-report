@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] - 2025-02-28
+
+### Added
+- Hỗ trợ xuất nhiều ảnh vào file Excel (tối đa 4 ảnh mỗi dòng)
+- Sắp xếp ảnh theo lưới 2x2 trong ô Excel
+- Hiển thị thông báo "+X more images" nếu có nhiều hơn 4 ảnh
+
+### Changed
+- Tăng chiều cao dòng trong Excel để hiển thị nhiều ảnh (từ 100px lên 200px)
+
 ## [1.3.1] - 2025-02-28
 
 ### Changed

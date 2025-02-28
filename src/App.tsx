@@ -492,37 +492,56 @@ function App() {
         // Add the row data
         const excelRow = worksheet.addRow(rowData);
         
-        // Tăng chiều cao của hàng để hiển thị ảnh tốt hơn
-        excelRow.height = 100;
+        // Tăng chiều cao của hàng để hiển thị nhiều ảnh
+        excelRow.height = 200; // Tăng chiều cao để có thể hiển thị nhiều ảnh
         
         // Add images if available
         const attachments = row['attachment'] as ImageAttachment[] || [];
         if (attachments.length > 0) {
           const attachmentColIndex = excelHeaders.indexOf('attachment');
           if (attachmentColIndex !== -1) {
-            // Process only the first image for each row
-            const imageData = attachments[0].dataUrl;
-            const base64Data = imageData.split(',')[1];
+            // Xử lý tất cả các ảnh cho mỗi dòng
+            const maxImagesPerRow = 4; // Giới hạn số lượng ảnh mỗi dòng để tránh quá tải
+            const imagesToProcess = attachments.slice(0, maxImagesPerRow);
             
-            // Add image to worksheet
-            try {
-              const imageId = workbook.addImage({
-                base64: base64Data,
-                extension: 'jpeg',
-              });
-              
-              // Tăng kích thước ảnh thêm 15%
-              const imageWidth = 92; // 80 * 1.15
-              const imageHeight = 92; // 80 * 1.15
-              
-              // Position is 0-indexed for tl, but 1-indexed for row references
-              worksheet.addImage(imageId, {
-                tl: { col: attachmentColIndex, row: rowIndex + 1 },
-                ext: { width: imageWidth, height: imageHeight },
-                editAs: 'oneCell' // Đảm bảo ảnh được chèn vào trong ô
-              });
-            } catch (error) {
-              console.error('Error adding image to Excel:', error);
+            // Tính toán kích thước và vị trí cho mỗi ảnh
+            const imageWidth = 80; // Chiều rộng cơ bản cho mỗi ảnh
+            const imageHeight = 80; // Chiều cao cơ bản cho mỗi ảnh
+            
+            // Sắp xếp ảnh theo lưới 2x2 nếu có nhiều ảnh
+            imagesToProcess.forEach((attachment, imgIndex) => {
+              try {
+                const imageData = attachment.dataUrl;
+                const base64Data = imageData.split(',')[1];
+                
+                // Thêm ảnh vào workbook
+                const imageId = workbook.addImage({
+                  base64: base64Data,
+                  extension: 'jpeg',
+                });
+                
+                // Tính toán vị trí dựa trên chỉ số ảnh
+                // Sắp xếp theo lưới 2x2: 0 1
+                //                        2 3
+                const col = attachmentColIndex + (imgIndex % 2) * 0.5; // 0, 0.5, 0, 0.5
+                const row = (rowIndex + 1) + Math.floor(imgIndex / 2) * 0.5; // Dòng + 0, 0, 0.5, 0.5
+                
+                // Thêm ảnh vào worksheet với vị trí đã tính
+                worksheet.addImage(imageId, {
+                  tl: { col: col, row: row },
+                  ext: { width: imageWidth, height: imageHeight },
+                  editAs: 'oneCell'
+                });
+              } catch (error) {
+                console.error(`Error adding image ${imgIndex} to Excel:`, error);
+              }
+            });
+            
+            // Thêm chú thích về số lượng ảnh nếu có nhiều hơn giới hạn
+            if (attachments.length > maxImagesPerRow) {
+              const cell = worksheet.getCell(rowIndex + 2, attachmentColIndex + 1);
+              cell.value = `+${attachments.length - maxImagesPerRow} more images`;
+              cell.font = { size: 8, color: { argb: 'FF0000FF' } };
             }
           }
         }
