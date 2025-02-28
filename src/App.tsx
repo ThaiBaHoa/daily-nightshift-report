@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Button, 
   TextField, 
@@ -15,12 +15,24 @@ import {
   Stack,
   Snackbar,
   Alert,
-  CircularProgress
+  CircularProgress,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  ImageList,
+  ImageListItem
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import * as XLSX from 'xlsx';
 import { format, parse } from 'date-fns';
+import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
+import DeleteIcon from '@mui/icons-material/Delete';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 interface TemplateField {
   value: string | number | null;
@@ -31,8 +43,13 @@ interface TemplateRow {
   [key: string]: TemplateField;
 }
 
+interface ImageAttachment {
+  dataUrl: string;
+  name: string;
+}
+
 interface DataRow {
-  [key: string]: string | number | null;
+  [key: string]: string | number | null | ImageAttachment[];
 }
 
 interface SelectChangeEvent {
@@ -77,6 +94,14 @@ function App() {
     message: '',
     severity: 'info'
   });
+  
+  // Image attachment states
+  const [imagePreviewOpen, setImagePreviewOpen] = useState<boolean>(false);
+  const [selectedImage, setSelectedImage] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const MAX_IMAGE_WIDTH = 800;
+  const MAX_IMAGE_HEIGHT = 600;
 
   const showSnackbar = (message: string, severity: 'success' | 'info' | 'warning' | 'error' = 'info') => {
     setSnackbar({
@@ -162,6 +187,7 @@ function App() {
       // Nếu dữ liệu quá lớn (> 5MB), hiển thị cảnh báo
       if (dataSize > 5 * 1024 * 1024) {
         console.warn('Dữ liệu tạm quá lớn, có thể gây vấn đề với localStorage');
+        showSnackbar('Dữ liệu tạm quá lớn, một số hình ảnh có thể không được lưu!', 'warning');
       }
       
       localStorage.setItem('tempData', tempDataString);
@@ -172,11 +198,21 @@ function App() {
     }
   };
 
-  const loadTempFile = (): { inspector: string; date: string } | null => {
+  const loadTempFile = () => {
     try {
       const tempData = localStorage.getItem('tempData');
       if (tempData) {
-        return JSON.parse(tempData);
+        const parsedData = JSON.parse(tempData);
+        
+        // Restore data with attachments
+        if (parsedData.data) {
+          setData(parsedData.data);
+        }
+        
+        return {
+          inspector: parsedData.inspector,
+          date: parsedData.date
+        };
       }
     } catch (error) {
       console.error('Error loading temp data:', error);
@@ -212,7 +248,7 @@ function App() {
         return header && header !== '__PowerAppsId__';
       });
       
-      // Thêm cột Date và INSPECTOR nếu chưa có
+      // Thêm cột Date, INSPECTOR và attachment nếu chưa có
       if (!headerRow.includes('DATE')) {
         headerRow.push('DATE');
       }
@@ -221,6 +257,9 @@ function App() {
       }
       if (!headerRow.includes('INSPECTOR')) {
         headerRow.push('INSPECTOR');
+      }
+      if (!headerRow.includes('attachment')) {
+        headerRow.push('attachment');
       }
 
       const orderedHeaders = ['STT', 'Date'];
@@ -239,7 +278,7 @@ function App() {
       headerRow.forEach(header => {
         templateRow[header] = {
           value: header === 'DATE' || header === 'Date' ? formattedDate : null,
-          isEditable: ['INSPECTOR', 'DATE', 'Status', 'Note', 'Corrective action', 'Target'].includes(header)
+          isEditable: ['INSPECTOR', 'DATE', 'Status', 'Note', 'Corrective action', 'Target', 'attachment'].includes(header)
         };
       });
 
@@ -253,6 +292,8 @@ function App() {
               rowData[header] = formattedDate;
             } else if (header === 'INSPECTOR') {
               rowData[header] = '';
+            } else if (header === 'attachment') {
+              rowData[header] = [];
             } else {
               const originalIndex = originalHeaders.indexOf(header);
               if (originalIndex >= 0 && originalIndex !== powerAppsIdIndex) {
@@ -387,7 +428,7 @@ function App() {
     }
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     setLoading(true);
     try {
       if (!selectedInspector) {
@@ -411,31 +452,86 @@ function App() {
 
       // Lọc bỏ cột DATE khỏi headers khi xuất Excel
       const excelHeaders = headers.filter(header => header !== 'DATE');
-      const ws = XLSX.utils.aoa_to_sheet([excelHeaders]);
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Sheet1');
 
+      // Add header row
+      worksheet.addRow(excelHeaders);
+      
+      // Format header row
+      worksheet.getRow(1).font = { bold: true };
+      
+      // Set column widths
+      excelHeaders.forEach((header, index) => {
+        const column = worksheet.getColumn(index + 1);
+        if (header === 'attachment') {
+          column.width = 35; // Tăng độ rộng cột chứa ảnh
+        } else {
+          column.width = 15;
+        }
+      });
+
+      // Add data rows
       const formattedDate = formatDate(selectedDate);
-      const rows = data.map(row => {
-        return excelHeaders.map(header => {
+      
+      data.forEach((row, rowIndex) => {
+        const rowData = excelHeaders.map(header => {
           if (header === 'Date') {
             return formattedDate;
           }
           if (header === 'INSPECTOR') {
             return selectedInspector;
           }
+          if (header === 'attachment') {
+            // Để ô trống thay vì hiển thị text
+            return '';
+          }
           return row[header] || '';
         });
+        
+        // Add the row data
+        const excelRow = worksheet.addRow(rowData);
+        
+        // Tăng chiều cao của hàng để hiển thị ảnh tốt hơn
+        excelRow.height = 100;
+        
+        // Add images if available
+        const attachments = row['attachment'] as ImageAttachment[] || [];
+        if (attachments.length > 0) {
+          const attachmentColIndex = excelHeaders.indexOf('attachment');
+          if (attachmentColIndex !== -1) {
+            // Process only the first image for each row
+            const imageData = attachments[0].dataUrl;
+            const base64Data = imageData.split(',')[1];
+            
+            // Add image to worksheet
+            try {
+              const imageId = workbook.addImage({
+                base64: base64Data,
+                extension: 'jpeg',
+              });
+              
+              // Tăng kích thước ảnh thêm 15%
+              const imageWidth = 92; // 80 * 1.15
+              const imageHeight = 92; // 80 * 1.15
+              
+              // Position is 0-indexed for tl, but 1-indexed for row references
+              worksheet.addImage(imageId, {
+                tl: { col: attachmentColIndex, row: rowIndex + 1 },
+                ext: { width: imageWidth, height: imageHeight },
+                editAs: 'oneCell' // Đảm bảo ảnh được chèn vào trong ô
+              });
+            } catch (error) {
+              console.error('Error adding image to Excel:', error);
+            }
+          }
+        }
       });
-
-      XLSX.utils.sheet_add_aoa(ws, rows, { origin: -1 });
-
-      // Thêm style cho worksheet
-      ws['!cols'] = excelHeaders.map(() => ({ wch: 15 })); // Đặt chiều rộng cột
       
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-      
+      // Save workbook to file
       const fileName = `Daily Nightshift report_${formattedDate.replace(/\//g, '')}_${selectedInspector}.xlsx`;
-      XLSX.writeFile(wb, fileName);
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(new Blob([buffer]), fileName);
       
       showSnackbar('File đã được xuất thành công!', 'success');
       deleteTempFile();
@@ -471,6 +567,9 @@ function App() {
         updatedRow[header] = formatDate(selectedDate);
       } else if (header === 'Status') {
         updatedRow[header] = template[header].value || 'Not Check';
+      } else if (header === 'attachment') {
+        // Preserve existing attachments
+        updatedRow[header] = updatedRow[header] || [];
       } else if (template[header]?.isEditable) {
         updatedRow[header] = template[header].value;
       }
@@ -486,7 +585,8 @@ function App() {
       if (resetTemplate[header]?.isEditable && 
           header !== 'INSPECTOR' && 
           header !== 'Date' && 
-          header !== 'DATE') {
+          header !== 'DATE' &&
+          header !== 'attachment') {
         resetTemplate[header].value = null;
       }
     });
@@ -516,15 +616,190 @@ function App() {
         const updatedTemplate = { ...template };
         headers.forEach(header => {
           if (updatedTemplate[header]) {
+            if (header === 'attachment') {
+              // Skip attachment field as it's not part of the template value
+              return;
+            }
             updatedTemplate[header] = {
               ...updatedTemplate[header],
-              value: selectedRow[header] || null
+              value: (typeof selectedRow[header] === 'string' || typeof selectedRow[header] === 'number') 
+                ? selectedRow[header] as string | number | null 
+                : null
             };
           }
         });
         setTemplate(updatedTemplate);
       }
     }
+  };
+
+  // Image handling functions
+  const handleImageUpload = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const resizeImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Calculate the new dimensions while maintaining aspect ratio
+          if (width > MAX_IMAGE_WIDTH) {
+            height = Math.round(height * (MAX_IMAGE_WIDTH / width));
+            width = MAX_IMAGE_WIDTH;
+          }
+          
+          if (height > MAX_IMAGE_HEIGHT) {
+            width = Math.round(width * (MAX_IMAGE_HEIGHT / height));
+            height = MAX_IMAGE_HEIGHT;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Convert to data URL (JPEG format with 0.8 quality)
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(dataUrl);
+        };
+        img.onerror = () => {
+          reject(new Error('Failed to load image'));
+        };
+      };
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+    });
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    
+    try {
+      setLoading(true);
+      
+      const updatedData = [...data];
+      const rowIndex = updatedData.findIndex(row => Number(row.STT) === selectedSTT);
+      
+      if (rowIndex === -1) {
+        showSnackbar('Không tìm thấy dòng dữ liệu tương ứng!', 'error');
+        setLoading(false);
+        return;
+      }
+      
+      // Initialize attachments array if it doesn't exist
+      if (!updatedData[rowIndex]['attachment']) {
+        updatedData[rowIndex]['attachment'] = [];
+      }
+      
+      // Get current attachments
+      const currentAttachments = updatedData[rowIndex]['attachment'] as ImageAttachment[] || [];
+      
+      // Process each file
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+          const resizedDataUrl = await resizeImage(file);
+          currentAttachments.push({
+            dataUrl: resizedDataUrl,
+            name: file.name
+          });
+        } catch (error) {
+          console.error('Error processing image:', error);
+          showSnackbar(`Lỗi khi xử lý ảnh ${file.name}`, 'error');
+        }
+      }
+      
+      // Update the row with new attachments
+      updatedData[rowIndex]['attachment'] = currentAttachments;
+      setData(updatedData);
+      
+      // Save temp data
+      saveTempFile();
+      showSnackbar('Đã tải lên ảnh thành công!', 'success');
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      showSnackbar('Lỗi khi tải lên ảnh!', 'error');
+    } finally {
+      setLoading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeleteImage = (rowIndex: number, imageIndex: number) => {
+    const updatedData = [...data];
+    const attachments = updatedData[rowIndex]['attachment'] as ImageAttachment[] || [];
+    
+    if (attachments.length > imageIndex) {
+      attachments.splice(imageIndex, 1);
+      updatedData[rowIndex]['attachment'] = attachments;
+      setData(updatedData);
+      saveTempFile();
+      showSnackbar('Đã xóa ảnh thành công!', 'success');
+    }
+  };
+
+  const handlePreviewImage = (imageUrl: string) => {
+    setSelectedImage(imageUrl);
+    setImagePreviewOpen(true);
+  };
+
+  const handleCloseImagePreview = () => {
+    setImagePreviewOpen(false);
+  };
+
+  const renderAttachmentCell = (attachments: ImageAttachment[], rowIndex: number) => {
+    return (
+      <Box>
+        {Array.isArray(attachments) && attachments.length > 0 ? (
+          <ImageList sx={{ width: 120, height: 120 }} cols={2} rowHeight={60}>
+            {attachments.map((img, imgIndex) => (
+              <ImageListItem key={imgIndex}>
+                <img
+                  src={img.dataUrl}
+                  alt={img.name}
+                  style={{ width: 50, height: 50, objectFit: 'cover' }}
+                />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handlePreviewImage(img.dataUrl)}
+                  >
+                    <VisibilityIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton 
+                    size="small" 
+                    color="error" 
+                    onClick={() => handleDeleteImage(rowIndex, imgIndex)}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              </ImageListItem>
+            ))}
+          </ImageList>
+        ) : (
+          <Typography variant="caption" color="text.secondary">
+            No images
+          </Typography>
+        )}
+      </Box>
+    );
   };
 
   return (
@@ -545,7 +820,7 @@ function App() {
                 >
                   {data.map((row, index) => (
                     <MenuItem key={index} value={Number(row.STT || 0)}>
-                      {row.STT}
+                      {String(row.STT)}
                     </MenuItem>
                   ))}
                 </Select>
@@ -647,6 +922,25 @@ function App() {
                 </Select>
               </FormControl>
             </Grid>
+            
+            <Grid item xs={12}>
+              <Button
+                fullWidth
+                variant="contained"
+                color="primary"
+                onClick={handleImageUpload}
+              >
+                Tải ảnh
+              </Button>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                style={{ display: 'none' }}
+                ref={fileInputRef}
+                onChange={handleFileChange}
+              />
+            </Grid>
           </Grid>
         </Paper>
         
@@ -705,15 +999,17 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {data.map((row, index) => (
-                  <tr key={index}>
+                {data.map((row, rowIndex) => (
+                  <tr key={rowIndex}>
                     {headers
                       .filter(header => header !== 'DATE')
                       .map((header) => (
                         <td key={header} style={{ padding: 8, borderBottom: '1px solid #ddd' }}>
                           {header === 'Date' 
                             ? formatDate(selectedDate)
-                            : row[header] || ''}
+                            : header === 'attachment' 
+                              ? renderAttachmentCell(row[header] as ImageAttachment[] || [], rowIndex)
+                              : String(row[header] || '')}
                         </td>
                       ))}
                   </tr>
@@ -741,6 +1037,22 @@ function App() {
             <CircularProgress />
           </Box>
         )}
+        
+        <Dialog
+          open={imagePreviewOpen}
+          onClose={handleCloseImagePreview}
+          maxWidth="lg"
+        >
+          <DialogTitle>Preview Image</DialogTitle>
+          <DialogContent>
+            <img src={selectedImage} alt="Preview" style={{ width: '100%', height: '100%' }} />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseImagePreview} color="primary">
+              Close
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Container>
   );
