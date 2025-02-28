@@ -806,11 +806,13 @@ function App() {
     <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
         <img 
-          src={`${process.env.PUBLIC_URL}/vietjet-logo.svg`} 
+          src={`${process.env.PUBLIC_URL}/vietjet-logo.svg?v=${new Date().getTime()}`} 
           alt="Vietjet Air Logo" 
           style={{ 
             width: '250px', 
-            marginBottom: '20px' 
+            marginBottom: '20px',
+            maxHeight: '60px',
+            objectFit: 'contain'
           }} 
         />
         <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ color: '#e30613' }}>
