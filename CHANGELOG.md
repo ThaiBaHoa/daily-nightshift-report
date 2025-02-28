@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2025-02-28
+
+### Changed
+- Điều chỉnh thứ tự hiển thị: đưa 3 ô Target, Note, Corrective action ra sau ô Type
+- Cải thiện xử lý INSPECTOR: chỉ cần chọn 1 lần ban đầu, sau đó tự động điền cho toàn bộ cột
+
 ## [1.3.0] - 2025-02-28
 
 ### Added
