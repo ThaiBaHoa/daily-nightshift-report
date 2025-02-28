@@ -803,10 +803,18 @@ function App() {
   };
 
   return (
-    <Container maxWidth="md">
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Nhập dữ liệu Excel
+    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
+        <img 
+          src={`${process.env.PUBLIC_URL}/vietjet-logo.svg`} 
+          alt="Vietjet Air Logo" 
+          style={{ 
+            width: '250px', 
+            marginBottom: '20px' 
+          }} 
+        />
+        <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ color: '#e30613' }}>
+          Daily Nightshift Report
         </Typography>
         
         <Paper sx={{ p: 2, mb: 2 }}>
