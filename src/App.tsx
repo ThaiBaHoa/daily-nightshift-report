@@ -459,7 +459,21 @@ function App() {
       worksheet.addRow(excelHeaders);
       
       // Format header row
-      worksheet.getRow(1).font = { bold: true };
+      const headerRow = worksheet.getRow(1);
+      headerRow.font = { 
+        bold: true,
+        name: 'Arial',
+        size: 12
+      };
+      
+      // Áp dụng định dạng cho tất cả các ô trong header row
+      headerRow.eachCell((cell) => {
+        cell.alignment = { 
+          vertical: 'middle', 
+          horizontal: 'center',
+          wrapText: true 
+        };
+      });
       
       // Set column widths
       excelHeaders.forEach((header, index) => {
@@ -494,6 +508,18 @@ function App() {
         
         // Tăng chiều cao của hàng để hiển thị nhiều ảnh
         excelRow.height = 200; // Tăng chiều cao để có thể hiển thị nhiều ảnh
+        
+        // Áp dụng định dạng cho tất cả các ô trong data row
+        excelRow.eachCell((cell) => {
+          cell.font = {
+            name: 'Arial',
+            size: 12
+          };
+          cell.alignment = {
+            vertical: 'middle',
+            wrapText: true
+          };
+        });
         
         // Add images if available
         const attachments = row['attachment'] as ImageAttachment[] || [];
@@ -541,11 +567,28 @@ function App() {
             if (attachments.length > maxImagesPerRow) {
               const cell = worksheet.getCell(rowIndex + 2, attachmentColIndex + 1);
               cell.value = `+${attachments.length - maxImagesPerRow} more images`;
-              cell.font = { size: 8, color: { argb: 'FF0000FF' } };
+              cell.font = { name: 'Arial', size: 8, color: { argb: 'FF0000FF' } };
+              cell.alignment = { vertical: 'middle', wrapText: true };
             }
           }
         }
       });
+      
+      // Đặt border cho tất cả các ô có dữ liệu
+      const totalRows = worksheet.rowCount;
+      const totalCols = worksheet.columnCount;
+      
+      for (let rowNum = 1; rowNum <= totalRows; rowNum++) {
+        for (let colNum = 1; colNum <= totalCols; colNum++) {
+          const cell = worksheet.getCell(rowNum, colNum);
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        }
+      }
       
       // Save workbook to file
       const fileName = `Daily Nightshift report_${formattedDate.replace(/\//g, '')}_${selectedInspector}.xlsx`;

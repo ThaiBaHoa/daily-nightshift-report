@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.3] - 2025-03-01
+
+### Changed
+- Cải thiện định dạng Excel:
+  - Tất cả các ô được căn giữa theo chiều dọc (middle align)
+  - Tất cả các ô có chế độ wrap text để hiển thị đầy đủ nội dung
+  - Sử dụng font Arial, cỡ chữ 12 cho tất cả các ô
+  - Thêm đường viền (border) cho tất cả các ô có dữ liệu
+
 ## [1.3.2] - 2025-02-28
 
 ### Added
