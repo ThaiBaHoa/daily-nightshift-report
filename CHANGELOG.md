@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.6] - 2025-03-05
+
+### Added
+- Thêm hướng dẫn chi tiết cho từng trường dựa trên STT
+- Tạo file fieldInstructions.ts để lưu trữ nội dung hướng dẫn
+- Cập nhật template Excel với các thay đổi mới
+
 ## [1.3.5] - 2025-03-01
 
 ### Added
@@ -87,6 +94,6 @@ All notable changes to this project will be documented in this file.
 - Nhập dữ liệu cho các trường: Target, Note, Corrective action
 - Tùy chọn trạng thái: Checked, Not Check, Finding
 - Xuất báo cáo ra file Excel
-- Lưu dữ liệu tạm thời trong local storage
+- Lưu dữ liệu tạm thởi trong local storage
 - Giao diện thân thiện với người dùng
 - Tích hợp với GitHub Pages để triển khai ứng dụng

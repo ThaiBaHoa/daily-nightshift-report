@@ -33,6 +33,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { FIELD_INSTRUCTIONS } from './fieldInstructions';
 
 interface TemplateField {
   value: string | number | null;
@@ -710,6 +711,14 @@ function App() {
     }
   };
 
+  // Hàm để lấy hướng dẫn cho STT hiện tại
+  const getCurrentInstruction = (): string | null => {
+    const currentRow = data.find(row => Number(row.STT) === selectedSTT);
+    if (!currentRow || !currentRow.STT) return null;
+    
+    return FIELD_INSTRUCTIONS[String(currentRow.STT)] || null;
+  };
+
   // Image handling functions
   const handleImageUpload = () => {
     if (fileInputRef.current) {
@@ -948,6 +957,20 @@ function App() {
                 />
               </LocalizationProvider>
             </Grid>
+
+            {/* Hiển thị hướng dẫn cho STT hiện tại nếu có */}
+            {getCurrentInstruction() && (
+              <Grid item xs={12}>
+                <Paper elevation={0} sx={{ p: 2, bgcolor: '#f8f9fa', mb: 2, border: '1px solid #e0e0e0' }}>
+                  <Typography variant="subtitle2" color="primary" gutterBottom>
+                    Hướng dẫn kiểm tra:
+                  </Typography>
+                  <Typography variant="body2" style={{ whiteSpace: 'pre-line' }}>
+                    {getCurrentInstruction()}
+                  </Typography>
+                </Paper>
+              </Grid>
+            )}
 
             <Grid item xs={12}>
               <FormControl fullWidth>
