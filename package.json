@@ -1,6 +1,6 @@
 {
   "name": "daily-nightshift-report",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://thaibahoa.github.io/daily-nightshift-report",
   "private": true,
   "dependencies": {
