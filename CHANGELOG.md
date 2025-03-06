@@ -85,15 +85,15 @@ All notable changes to this project will be documented in this file.
 - Sửa lỗi hiển thị ngày trong phần review
 - Sửa lỗi ngày không được cập nhật đúng trong template và dữ liệu
 
-## [1.0.0] - Initial Release
+## [1.0.1] - 2025-03-06
+### Cải thiện
+- Cải thiện hiển thị cột Description trong ứng dụng để hỗ trợ nội dung nhiều dòng
+- Thêm định dạng `whiteSpace: 'pre-wrap'` và `wordBreak: 'break-word'` cho cột Description
+- Thiết lập chiều cao tối thiểu 80px và tối đa 200px cho cột Description
+- Cải thiện xuất Excel với định dạng đúng cho cột Description (word wrap, vertical alignment)
 
-### Added
-- Tạo mới báo cáo ca đêm với template có sẵn
-- Chọn INSPECTOR từ danh sách có sẵn
-- Chọn ngày từ DatePicker
-- Nhập dữ liệu cho các trường: Target, Note, Corrective action
-- Tùy chọn trạng thái: Checked, Not Check, Finding
-- Xuất báo cáo ra file Excel
-- Lưu dữ liệu tạm thởi trong local storage
-- Giao diện thân thiện với người dùng
-- Tích hợp với GitHub Pages để triển khai ứng dụng
+## [1.0.0] - Ban đầu
+### Tính năng
+- Phiên bản đầu tiên của ứng dụng Daily Nightshift Report
+- Hỗ trợ tải lên và xuất template Excel
+- Giao diện người dùng thân thiện để nhập và chỉnh sửa dữ liệu
