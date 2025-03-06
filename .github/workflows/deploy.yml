@@ -7,24 +7,33 @@ on:
 permissions:
   contents: write
 
+env:
+  ACTIONS_STEP_DEBUG: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v3
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js ⚙️
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
           cache: 'npm'
 
       - name: Install dependencies 📦
-        run: npm ci
+        run: |
+          npm install
+          npm list
 
       - name: Build 🏗️
-        run: npm run build
+        run: |
+          npm run build
+          ls -la build
 
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
@@ -32,3 +41,5 @@ jobs:
           folder: build
           branch: gh-pages
           clean: true
+          git-config-name: ThaiBaHoa
+          git-config-email: thaibahoa.dev@gmail.com
