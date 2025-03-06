@@ -524,15 +524,30 @@ function App() {
         excelRow.height = 200; // Tăng chiều cao để có thể hiển thị nhiều ảnh
         
         // Áp dụng định dạng cho tất cả các ô trong data row
-        excelRow.eachCell((cell) => {
+        excelRow.eachCell((cell, colNumber) => {
           cell.font = {
             name: 'Arial',
             size: 12
           };
-          cell.alignment = {
-            vertical: 'middle',
-            wrapText: true
-          };
+          
+          // Áp dụng định dạng đặc biệt cho cột Description
+          const currentHeader = excelHeaders[colNumber - 1];
+          if (currentHeader === 'Description') {
+            cell.alignment = {
+              vertical: 'top',
+              horizontal: 'left',
+              wrapText: true
+            };
+            // Tăng chiều cao của ô để hiển thị nhiều dòng văn bản
+            if (cell.value && cell.value.toString().length > 50) {
+              excelRow.height = Math.max(excelRow.height || 20, 100);
+            }
+          } else {
+            cell.alignment = {
+              vertical: 'middle',
+              wrapText: true
+            };
+          }
         });
         
         // Add images if available
@@ -895,6 +910,35 @@ function App() {
     );
   };
 
+  const renderFieldValue = (header: string, value: any, rowIndex: number) => {
+    if (header === 'attachment' && Array.isArray(value)) {
+      return renderAttachmentCell(value, rowIndex);
+    } else if (header === 'Description') {
+      return (
+        <Box sx={{ 
+          whiteSpace: 'pre-wrap', 
+          wordBreak: 'break-word',
+          minHeight: '80px',
+          maxHeight: '200px',
+          overflow: 'auto',
+          border: '1px solid #e0e0e0',
+          borderRadius: '4px',
+          p: 1,
+          bgcolor: '#f5f5f5',
+          textAlign: 'left',
+          fontSize: '0.875rem',
+          lineHeight: '1.5'
+        }}>
+          {value}
+        </Box>
+      );
+    } else if (header === 'Date') {
+      return formatDate(selectedDate);
+    } else {
+      return String(value || '');
+    }
+  };
+
   return (
     <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
@@ -1120,22 +1164,30 @@ function App() {
               </thead>
               <tbody>
                 {data.map((row, rowIndex) => (
-                  <tr key={rowIndex}>
+                  <tr 
+                    key={rowIndex} 
+                    style={{ 
+                      backgroundColor: Number(row.STT) === selectedSTT ? '#e3f2fd' : 'inherit',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => handleSTTChange(Number(row.STT))}
+                  >
                     {headers
                       .filter(header => header !== 'DATE')
-                      .map((header) => (
-                        <td key={header} style={{ 
-                          padding: 8, 
-                          borderBottom: '1px solid #ddd',
-                          whiteSpace: header === 'Description' ? 'pre-wrap' : 'normal',
-                          maxWidth: header === 'Description' ? '300px' : 'auto'
-                        }}>
-                          {header === 'Date' 
-                            ? formatDate(selectedDate)
-                            : header === 'attachment' 
-                              ? renderAttachmentCell(row[header] as ImageAttachment[] || [], rowIndex)
-                              : String(row[header] || '')}
-                        </td>
+                      .map((header, colIndex) => (
+                        <td 
+                          key={colIndex} 
+                          style={{ 
+                            padding: '8px', 
+                            border: '1px solid #ddd',
+                            textAlign: header === 'Description' ? 'left' : 'center',
+                            whiteSpace: header === 'Description' ? 'pre-wrap' : 'normal',
+                            maxWidth: header === 'Description' ? '300px' : 'auto',
+                            minHeight: header === 'Description' ? '100px' : 'auto',
+                            verticalAlign: header === 'Description' ? 'top' : 'middle'
+                          }}>
+                            {renderFieldValue(header, row[header], rowIndex)}
+                          </td>
                       ))}
                   </tr>
                 ))}
