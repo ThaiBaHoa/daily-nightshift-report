@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.6] - 2025-03-06
+
+### Added
+- Thêm tính năng hiển thị hướng dẫn chi tiết (Field Instructions) cho từng mục kiểm tra dựa trên STT
+- Tạo file `fieldInstructions.ts` chứa hướng dẫn chi tiết cho các giá trị STT: 1, 2, 3, 6, 7, 8, 11, 19
+- Hiển thị hướng dẫn trong giao diện người dùng với định dạng đa dòng
+
+### Changed
+- Cải thiện hiển thị cột Description:
+  - Hỗ trợ hiển thị văn bản trên nhiều dòng trong giao diện
+  - Giữ nguyên định dạng khoảng trắng và ngắt dòng
+  - Cập nhật cách hiển thị để hỗ trợ nội dung đầy đủ
+- Cải thiện trường Note với hỗ trợ đa dòng
+- Tối ưu hóa xuất Excel cho cột Description:
+  - Căn lề trên cho văn bản
+  - Giữ nguyên định dạng đa dòng khi xuất ra file Excel
+
 ## [1.3.5] - 2025-03-01
 
 ### Added

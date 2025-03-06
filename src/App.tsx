@@ -33,6 +33,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { FIELD_INSTRUCTIONS, getFieldInstruction } from './fieldInstructions';
 
 interface TemplateField {
   value: string | number | null;
@@ -516,15 +517,26 @@ function App() {
         excelRow.height = 200; // Tăng chiều cao để có thể hiển thị nhiều ảnh
         
         // Áp dụng định dạng cho tất cả các ô trong data row
-        excelRow.eachCell((cell) => {
+        excelRow.eachCell((cell, colNumber) => {
           cell.font = {
             name: 'Arial',
             size: 12
           };
-          cell.alignment = {
-            vertical: 'middle',
-            wrapText: true
-          };
+          
+          const header = excelHeaders[colNumber - 1];
+          
+          // Special handling for Description column to preserve line breaks
+          if (header === 'Description') {
+            cell.alignment = {
+              vertical: 'top',
+              wrapText: true
+            };
+          } else {
+            cell.alignment = {
+              vertical: 'middle',
+              wrapText: true
+            };
+          }
         });
         
         // Add images if available
@@ -950,6 +962,22 @@ function App() {
             </Grid>
 
             <Grid item xs={12}>
+              {selectedSTT && (
+                <Paper elevation={0} sx={{ p: 2, bgcolor: '#f5f5f5', mb: 2 }}>
+                  <Typography variant="subtitle2" color="primary" gutterBottom>
+                    Hướng dẫn kiểm tra:
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ whiteSpace: 'pre-line', pl: 1 }}
+                  >
+                    {getFieldInstruction(selectedSTT)}
+                  </Typography>
+                </Paper>
+              )}
+            </Grid>
+
+            <Grid item xs={12}>
               <FormControl fullWidth>
                 <InputLabel>Status</InputLabel>
                 <Select
@@ -969,12 +997,33 @@ function App() {
               .filter(header => !['STT', 'INSPECTOR', 'Status', 'Date', 'Note', 'Corrective action', 'Target', 'attachment'].includes(header))
               .map((header) => {
                 const currentRow = data.find(row => Number(row.STT) === selectedSTT);
+                const value = currentRow?.[header] || '';
+                
+                // Special handling for Description column to preserve whitespace and line breaks
+                if (header === 'Description') {
+                  return (
+                    <Grid item xs={12} key={header}>
+                      <TextField
+                        fullWidth
+                        label={header}
+                        value={value}
+                        InputProps={{
+                          readOnly: true,
+                          style: { whiteSpace: 'pre-wrap' }
+                        }}
+                        multiline
+                        minRows={3}
+                      />
+                    </Grid>
+                  );
+                }
+                
                 return (
                   <Grid item xs={12} key={header}>
                     <TextField
                       fullWidth
                       label={header}
-                      value={currentRow?.[header] || ''}
+                      value={value}
                       InputProps={{
                         readOnly: true,
                       }}
@@ -998,6 +1047,8 @@ function App() {
                 label="Note"
                 value={template['Note']?.value as string || ''}
                 onChange={(e) => handleInputChange('Note', e.target.value)}
+                multiline
+                minRows={2}
               />
             </Grid>
 
