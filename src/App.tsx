@@ -252,7 +252,8 @@ function App() {
       const originalHeaders = jsonData[0] as string[];
       const powerAppsIdIndex = originalHeaders.findIndex(header => header === '__PowerAppsId__');
       let headerRow = originalHeaders.filter((header, index) => {
-        return header && header !== '__PowerAppsId__';
+        // Chỉ lọc bỏ __PowerAppsId__, giữ lại tất cả các header khác kể cả null hoặc empty
+        return header !== '__PowerAppsId__';
       });
       
       // Thêm cột Date, INSPECTOR và attachment nếu chưa có
@@ -289,9 +290,8 @@ function App() {
         };
       });
 
-      // Lọc dữ liệu, chỉ lấy các dòng có STT
+      // Lọc dữ liệu, lấy tất cả các dòng từ file Excel
       const filteredData = jsonData.slice(1)
-        .filter((row: any[]) => row[originalHeaders.indexOf('STT')])
         .map((row: any[]) => {
           const rowData: { [key: string]: any } = {};
           headerRow.forEach(header => {
@@ -301,6 +301,13 @@ function App() {
               rowData[header] = '';
             } else if (header === 'attachment') {
               rowData[header] = [];
+            } else if (header === 'Description') {
+              // Ensure Description field gets the full content
+              const originalIndex = originalHeaders.indexOf(header);
+              if (originalIndex >= 0 && originalIndex !== powerAppsIdIndex) {
+                // Convert to string to ensure all content is preserved
+                rowData[header] = String(row[originalIndex] || '');
+              }
             } else {
               const originalIndex = originalHeaders.indexOf(header);
               if (originalIndex >= 0 && originalIndex !== powerAppsIdIndex) {
@@ -700,7 +707,7 @@ function App() {
             }
             updatedTemplate[header] = {
               ...updatedTemplate[header],
-              value: (typeof selectedRow[header] === 'string' || typeof selectedRow[header] === 'number') 
+              value: (typeof selectedRow[header] === 'string' || typeof selectedRow[header] === 'number' || selectedRow[header] === null) 
                 ? selectedRow[header] as string | number | null 
                 : null
             };
@@ -989,7 +996,7 @@ function App() {
             </Grid>
 
             {headers
-              .filter(header => !['STT', 'INSPECTOR', 'Status', 'Date', 'Note', 'Corrective action', 'Target', 'attachment'].includes(header))
+              .filter(header => !['STT', 'INSPECTOR', 'Status', 'Date', 'DATE', 'Note', 'Corrective action', 'Target', 'attachment'].includes(header))
               .map((header) => {
                 const currentRow = data.find(row => Number(row.STT) === selectedSTT);
                 return (
@@ -1001,6 +1008,9 @@ function App() {
                       InputProps={{
                         readOnly: true,
                       }}
+                      multiline={header === 'Description'}
+                      minRows={header === 'Description' ? 3 : 1}
+                      maxRows={header === 'Description' ? 10 : 1}
                     />
                   </Grid>
                 );
@@ -1114,7 +1124,12 @@ function App() {
                     {headers
                       .filter(header => header !== 'DATE')
                       .map((header) => (
-                        <td key={header} style={{ padding: 8, borderBottom: '1px solid #ddd' }}>
+                        <td key={header} style={{ 
+                          padding: 8, 
+                          borderBottom: '1px solid #ddd',
+                          whiteSpace: header === 'Description' ? 'pre-wrap' : 'normal',
+                          maxWidth: header === 'Description' ? '300px' : 'auto'
+                        }}>
                           {header === 'Date' 
                             ? formatDate(selectedDate)
                             : header === 'attachment' 
