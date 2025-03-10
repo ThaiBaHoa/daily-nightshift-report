@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/daily-nightshift-report/static/css/main.6e1f1265.css",
-    "main.js": "/daily-nightshift-report/static/js/main.7d77a0a5.js",
+    "main.js": "/daily-nightshift-report/static/js/main.e7439f42.js",
     "static/media/roboto-latin-700-normal.woff2": "/daily-nightshift-report/static/media/roboto-latin-700-normal.4535474e1cf8598695ad.woff2",
     "static/media/roboto-latin-500-normal.woff2": "/daily-nightshift-report/static/media/roboto-latin-500-normal.7077203b1982951ecf76.woff2",
     "static/media/roboto-latin-400-normal.woff2": "/daily-nightshift-report/static/media/roboto-latin-400-normal.297d48e1b5a10c0831a9.woff2",
@@ -60,10 +60,10 @@
     "static/media/roboto-greek-ext-400-normal.woff": "/daily-nightshift-report/static/media/roboto-greek-ext-400-normal.16eb83b4a3b1ea994243.woff",
     "index.html": "/daily-nightshift-report/index.html",
     "main.6e1f1265.css.map": "/daily-nightshift-report/static/css/main.6e1f1265.css.map",
-    "main.7d77a0a5.js.map": "/daily-nightshift-report/static/js/main.7d77a0a5.js.map"
+    "main.e7439f42.js.map": "/daily-nightshift-report/static/js/main.e7439f42.js.map"
   },
   "entrypoints": [
     "static/css/main.6e1f1265.css",
-    "static/js/main.7d77a0a5.js"
+    "static/js/main.e7439f42.js"
   ]
 }
