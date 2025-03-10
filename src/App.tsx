@@ -660,8 +660,8 @@ function App() {
       }
       
       // Save workbook to file
-      const dateStr = format(selectedDate, 'ddMMyyyy');
-      const fileName = `Daily Nightshift report_${dateStr}_${selectedInspector}_${selectedStation}.xlsx`;
+      const dateStr = format(selectedDate, 'dd-MM-yyyy');
+      const fileName = `Daily report of event monitoring_${dateStr}_${selectedStation}_${selectedInspector}.xlsx`;
       const buffer = await workbook.xlsx.writeBuffer();
       saveAs(new Blob([buffer]), fileName);
       
