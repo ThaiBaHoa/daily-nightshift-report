@@ -71,6 +71,12 @@ const INSPECTORS = [
   "TTTHIEN"
 ];
 
+const STATIONS = [
+  "SGN",
+  "HAN",
+  "DAD"
+];
+
 const STATUS_OPTIONS = [
   "Checked",
   "Not Check",
@@ -82,6 +88,7 @@ function App() {
   const [template, setTemplate] = useState<TemplateRow>({});
   const [headers, setHeaders] = useState<string[]>([]);
   const [selectedInspector, setSelectedInspector] = useState<string>('');
+  const [selectedStation, setSelectedStation] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSTT, setSelectedSTT] = useState<number>(1);
   const [excelFormat, setExcelFormat] = useState<any>(null);
@@ -123,19 +130,19 @@ function App() {
     try {
       if (!(date instanceof Date) || isNaN(date.getTime())) {
         console.warn('Invalid date provided, using current date as fallback');
-        return format(new Date(), 'dd/MM/yyyy');
+        return format(new Date(), 'dd-MM-yyyy');
       }
-      return format(date, 'dd/MM/yyyy');
+      return format(date, 'dd-MM-yyyy');
     } catch (error) {
       console.error('Error formatting date:', error);
-      return format(new Date(), 'dd/MM/yyyy');
+      return format(new Date(), 'dd-MM-yyyy');
     }
   };
 
   const parseDate = (dateString: string): Date => {
     try {
       // Hỗ trợ nhiều định dạng ngày tháng phổ biến
-      const formats = ['dd/MM/yyyy', 'yyyy-MM-dd', 'MM/dd/yyyy'];
+      const formats = ['dd-MM-yyyy', 'yyyy-MM-dd', 'MM/dd/yyyy'];
       
       for (const formatStr of formats) {
         try {
@@ -178,11 +185,17 @@ function App() {
       return;
     }
 
+    if (!selectedStation) {
+      showSnackbar('Vui lòng nhập tên STATION trước khi lưu!', 'warning');
+      return;
+    }
+
     try {
       // Lưu dữ liệu vào localStorage thay vì file tạm
       const tempData = {
         data,
         inspector: selectedInspector,
+        station: selectedStation,
         date: selectedDate.toISOString()
       };
       
@@ -218,6 +231,7 @@ function App() {
         
         return {
           inspector: parsedData.inspector,
+          station: parsedData.station,
           date: parsedData.date
         };
       }
@@ -255,7 +269,7 @@ function App() {
         return header && header !== '__PowerAppsId__';
       });
       
-      // Thêm cột Date, INSPECTOR và attachment nếu chưa có
+      // Thêm cột Date, INSPECTOR, STATION và attachment nếu chưa có
       if (!headerRow.includes('DATE')) {
         headerRow.push('DATE');
       }
@@ -265,11 +279,14 @@ function App() {
       if (!headerRow.includes('INSPECTOR')) {
         headerRow.push('INSPECTOR');
       }
+      if (!headerRow.includes('STATION')) {
+        headerRow.push('STATION');
+      }
       if (!headerRow.includes('attachment')) {
         headerRow.push('attachment');
       }
 
-      const orderedHeaders = ['STT', 'Date'];
+      const orderedHeaders = ['STT', 'Date', 'STATION'];
       headerRow = [
         ...orderedHeaders,
         ...headerRow.filter(header => !orderedHeaders.includes(header))
@@ -285,7 +302,7 @@ function App() {
       headerRow.forEach(header => {
         templateRow[header] = {
           value: header === 'DATE' || header === 'Date' ? formattedDate : null,
-          isEditable: ['INSPECTOR', 'DATE', 'Status', 'Note', 'Corrective action', 'Target', 'attachment'].includes(header)
+          isEditable: ['INSPECTOR', 'STATION', 'DATE', 'Status', 'Note', 'Corrective action', 'Target', 'attachment'].includes(header)
         };
       });
 
@@ -298,6 +315,8 @@ function App() {
             if (header === 'Date' || header === 'DATE') {
               rowData[header] = formattedDate;
             } else if (header === 'INSPECTOR') {
+              rowData[header] = '';
+            } else if (header === 'STATION') {
               rowData[header] = '';
             } else if (header === 'attachment') {
               rowData[header] = [];
@@ -323,15 +342,24 @@ function App() {
       
       // Reset các giá trị khi load template mới
       setSelectedInspector('');
+      setSelectedStation('');
       setSelectedDate(currentDate);
       setSelectedSTT(1);
 
       const tempData = loadTempFile();
       if (tempData) {
         try {
-          const { inspector, date } = tempData;
+          const { inspector, station, date } = tempData;
           if (inspector) {
             setSelectedInspector(inspector);
+          }
+          if (station) {
+            setSelectedStation(station);
+            // Cập nhật giá trị STATION cho tất cả các dòng
+            setData(prev => prev.map(row => ({
+              ...row,
+              'STATION': station
+            })));
           }
           if (date) {
             const parsedDate = parseDate(date);
@@ -340,7 +368,8 @@ function App() {
               const formattedTempDate = formatDate(parsedDate);
               setData(prev => prev.map(row => ({
                 ...row,
-                Date: formattedTempDate
+                'DATE': formattedTempDate,
+                'Date': formattedTempDate
               })));
             }
           }
@@ -394,6 +423,17 @@ function App() {
           setSelectedInspector(value);
         }
         
+        // Nếu trường là STATION, cập nhật selectedStation và tất cả các dòng
+        if (field === 'STATION' && typeof value === 'string') {
+          setSelectedStation(value);
+          
+          // Cập nhật giá trị STATION cho tất cả các dòng
+          setData(prev => prev.map(row => ({
+            ...row,
+            'STATION': value
+          })));
+        }
+        
         // Lưu dữ liệu tạm sau khi thay đổi
         saveTempFile();
       } catch (error) {
@@ -440,6 +480,12 @@ function App() {
     try {
       if (!selectedInspector) {
         showSnackbar('Vui lòng chọn INSPECTOR trước khi xuất file!', 'warning');
+        setLoading(false);
+        return;
+      }
+
+      if (!selectedStation) {
+        showSnackbar('Vui lòng chọn STATION trước khi xuất file!', 'warning');
         setLoading(false);
         return;
       }
@@ -502,6 +548,9 @@ function App() {
           }
           if (header === 'INSPECTOR') {
             return selectedInspector;
+          }
+          if (header === 'STATION') {
+            return selectedStation;
           }
           if (header === 'attachment') {
             // Để ô trống thay vì hiển thị text
@@ -611,7 +660,8 @@ function App() {
       }
       
       // Save workbook to file
-      const fileName = `Daily Nightshift report_${formattedDate.replace(/\//g, '')}_${selectedInspector}.xlsx`;
+      const dateStr = format(selectedDate, 'ddMMyyyy');
+      const fileName = `Daily Nightshift report_${dateStr}_${selectedInspector}_${selectedStation}.xlsx`;
       const buffer = await workbook.xlsx.writeBuffer();
       saveAs(new Blob([buffer]), fileName);
       
@@ -631,6 +681,11 @@ function App() {
       return;
     }
 
+    if (!selectedStation) {
+      alert('Vui lòng chọn STATION!');
+      return;
+    }
+
     // Tạo một bản sao của dữ liệu hiện tại
     const updatedData = [...data];
     const rowIndex = updatedData.findIndex(row => Number(row.STT) === selectedSTT);
@@ -647,6 +702,8 @@ function App() {
         updatedRow[header] = selectedInspector;
       } else if ((header === 'Date' || header === 'DATE') && selectedDate) {
         updatedRow[header] = formatDate(selectedDate);
+      } else if (header === 'STATION' && selectedStation) {
+        updatedRow[header] = selectedStation;
       } else if (header === 'Status') {
         updatedRow[header] = template[header].value || 'Not Check';
       } else if (header === 'attachment') {
@@ -660,19 +717,21 @@ function App() {
     // Cập nhật dòng trong mảng dữ liệu
     updatedData[rowIndex] = updatedRow;
     
-    // Cập nhật INSPECTOR cho tất cả các dòng
+    // Cập nhật INSPECTOR và STATION cho tất cả các dòng
     const allUpdatedData = updatedData.map(row => ({
       ...row,
-      INSPECTOR: selectedInspector
+      INSPECTOR: selectedInspector,
+      STATION: selectedStation
     }));
     
     setData(allUpdatedData);
     
-    // Reset các trường có thể chỉnh sửa, ngoại trừ INSPECTOR và Date
+    // Reset các trường có thể chỉnh sửa, ngoại trừ INSPECTOR, STATION và Date
     const resetTemplate = { ...template };
     headers.forEach(header => {
       if (resetTemplate[header]?.isEditable && 
           header !== 'INSPECTOR' && 
+          header !== 'STATION' && 
           header !== 'Date' && 
           header !== 'DATE' &&
           header !== 'attachment') {
@@ -854,15 +913,19 @@ function App() {
 
   const renderAttachmentCell = (attachments: ImageAttachment[], rowIndex: number) => {
     return (
-      <Box>
+      <Box sx={{ 
+        width: '100%', 
+        maxWidth: { xs: '120px', sm: '150px' },
+        minWidth: { xs: '100px', sm: '120px' }
+      }}>
         {Array.isArray(attachments) && attachments.length > 0 ? (
-          <ImageList sx={{ width: 120, height: 120 }} cols={2} rowHeight={60}>
+          <ImageList sx={{ width: '100%', height: { xs: 100, sm: 120 } }} cols={2} rowHeight={50}>
             {attachments.map((img, imgIndex) => (
               <ImageListItem key={imgIndex}>
                 <img
                   src={img.dataUrl}
                   alt={img.name}
-                  style={{ width: 50, height: 50, objectFit: 'cover' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
                   <IconButton 
@@ -892,26 +955,35 @@ function App() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
+    <Container maxWidth="md" sx={{ mt: 2, mb: 4, px: { xs: 1, sm: 2, md: 3 } }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
         <img 
           src={`${process.env.PUBLIC_URL}/vietjet-logo.svg?v=${new Date().getTime()}`} 
           alt="Vietjet Air Logo" 
           style={{ 
-            width: '250px', 
-            marginBottom: '20px',
-            maxHeight: '60px',
+            width: '200px', 
+            marginBottom: '15px',
+            maxHeight: '50px',
             objectFit: 'contain'
           }} 
         />
-        <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ color: '#e30613' }}>
+        <Typography 
+          variant="h4" 
+          component="h1" 
+          gutterBottom 
+          align="center" 
+          sx={{ 
+            color: '#e30613',
+            fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' }
+          }}
+        >
           Daily Nightshift Report
         </Typography>
         
-        <Paper sx={{ p: 2, mb: 2 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <FormControl fullWidth>
+        <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: 2, width: '100%' }}>
+          <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+            <Grid item xs={12} sm={6} md={4}>
+              <FormControl fullWidth size="small">
                 <InputLabel>STT</InputLabel>
                 <Select
                   value={selectedSTT}
@@ -926,8 +998,8 @@ function App() {
               </FormControl>
             </Grid>
             
-            <Grid item xs={12} md={4}>
-              <FormControl fullWidth>
+            <Grid item xs={12} sm={6} md={4}>
+              <FormControl fullWidth size="small">
                 <InputLabel>Inspector</InputLabel>
                 <Select
                   value={selectedInspector}
@@ -943,16 +1015,34 @@ function App() {
               </FormControl>
             </Grid>
             
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} sm={6} md={4}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Station</InputLabel>
+                <Select
+                  value={selectedStation}
+                  onChange={(e) => handleInputChange('STATION', e.target.value)}
+                >
+                  {STATIONS.map((station) => (
+                    <MenuItem key={station} value={station}>
+                      {station}
+                    </MenuItem>
+                  ))}
+                </Select>
+                <FormHelperText>Bắt buộc</FormHelperText>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={4}>
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
                   label="Date *"
                   value={selectedDate}
                   onChange={handleDateChange}
-                  format="dd/MM/yyyy"
+                  format="dd-MM-yyyy"
                   slotProps={{
                     textField: {
                       fullWidth: true,
+                      size: "small",
                       error: !selectedDate,
                       helperText: !selectedDate ? 'Bắt buộc' : ''
                     }
@@ -963,13 +1053,13 @@ function App() {
 
             <Grid item xs={12}>
               {selectedSTT && (
-                <Paper elevation={0} sx={{ p: 2, bgcolor: '#f5f5f5', mb: 2 }}>
+                <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 2 }, bgcolor: '#f5f5f5', mb: { xs: 1.5, sm: 2 } }}>
                   <Typography variant="subtitle2" color="primary" gutterBottom>
                     Hướng dẫn kiểm tra:
                   </Typography>
                   <Typography 
                     variant="body2" 
-                    sx={{ whiteSpace: 'pre-line', pl: 1 }}
+                    sx={{ whiteSpace: 'pre-line', pl: 1, fontSize: { xs: '0.875rem', sm: '0.875rem' } }}
                   >
                     {getFieldInstruction(selectedSTT)}
                   </Typography>
@@ -994,7 +1084,7 @@ function App() {
             </Grid>
 
             {headers
-              .filter(header => !['STT', 'INSPECTOR', 'Status', 'Date', 'Note', 'Corrective action', 'Target', 'attachment'].includes(header))
+              .filter(header => !['STT', 'INSPECTOR', 'STATION', 'Status', 'Date', 'Note', 'Corrective action', 'Target', 'attachment'].includes(header))
               .map((header) => {
                 const currentRow = data.find(row => Number(row.STT) === selectedSTT);
                 const value = currentRow?.[header] || '';
@@ -1082,12 +1172,17 @@ function App() {
           </Grid>
         </Paper>
         
-        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        <Stack 
+          direction={{ xs: 'column', sm: 'row' }} 
+          spacing={{ xs: 1, sm: 2 }} 
+          sx={{ mb: 2, width: '100%' }}
+        >
           <Button
             fullWidth
             variant="contained"
             color="primary"
             onClick={handleSubmit}
+            size="small"
           >
             Cập nhật dữ liệu
           </Button>
@@ -1096,16 +1191,22 @@ function App() {
             variant="contained"
             color="secondary"
             onClick={exportToExcel}
+            size="small"
           >
             Xuất File
           </Button>
         </Stack>
         
-        <Stack direction="row" spacing={2}>
+        <Stack 
+          direction={{ xs: 'column', sm: 'row' }} 
+          spacing={{ xs: 1, sm: 2 }}
+          sx={{ width: '100%' }}
+        >
           <Button
             fullWidth
             variant="outlined"
             onClick={saveTempFile}
+            size="small"
           >
             Save Temp
           </Button>
@@ -1114,46 +1215,69 @@ function App() {
             variant="outlined"
             color="error"
             onClick={deleteTempFile}
+            size="small"
           >
             Delete Temp
           </Button>
         </Stack>
         
         {data.length > 0 && (
-          <Box sx={{ mt: 4, overflowX: 'auto' }}>
+          <Box sx={{ mt: 4, width: '100%' }}>
             <Typography variant="h6" gutterBottom>
               Preview
             </Typography>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {headers
-                    .filter(header => header !== 'DATE')
-                    .map((header) => (
-                      <th key={header} style={{ padding: 8, borderBottom: '1px solid #ddd', textAlign: 'left' }}>
-                        {header}
-                      </th>
-                    ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((row, rowIndex) => (
-                  <tr key={rowIndex}>
+            <Box sx={{ overflowX: 'auto', maxWidth: '100%', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ 
+                width: '100%', 
+                borderCollapse: 'collapse',
+                minWidth: '650px' // Đảm bảo bảng có chiều rộng tối thiểu
+              }}>
+                <thead>
+                  <tr>
                     {headers
                       .filter(header => header !== 'DATE')
                       .map((header) => (
-                        <td key={header} style={{ padding: 8, borderBottom: '1px solid #ddd' }}>
-                          {header === 'Date' 
-                            ? formatDate(selectedDate)
-                            : header === 'attachment' 
-                              ? renderAttachmentCell(row[header] as ImageAttachment[] || [], rowIndex)
-                              : String(row[header] || '')}
-                        </td>
+                        <th key={header} style={{ 
+                          padding: 8, 
+                          borderBottom: '1px solid #ddd', 
+                          textAlign: 'left',
+                          whiteSpace: 'nowrap' // Ngăn header bị ngắt dòng
+                        }}>
+                          {header}
+                        </th>
                       ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.map((row, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {headers
+                        .filter(header => header !== 'DATE')
+                        .map((header) => (
+                          <td key={header} style={{ 
+                            padding: 8, 
+                            borderBottom: '1px solid #ddd',
+                            maxWidth: header === 'Description' ? '200px' : 
+                                    header === 'attachment' ? '150px' : 
+                                    header === 'Date' ? '100px' : 'auto',
+                            minWidth: header === 'attachment' ? '120px' : 
+                                     header === 'Date' ? '100px' : 'auto',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: header === 'Description' ? 'normal' : 'nowrap'
+                          }}>
+                            {header === 'Date' 
+                              ? formatDate(selectedDate)
+                              : header === 'attachment' 
+                                ? renderAttachmentCell(row[header] as ImageAttachment[] || [], rowIndex)
+                                : String(row[header] || '')}
+                          </td>
+                        ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Box>
           </Box>
         )}
         
@@ -1180,14 +1304,44 @@ function App() {
           open={imagePreviewOpen}
           onClose={handleCloseImagePreview}
           maxWidth="lg"
+          fullWidth
+          sx={{
+            '& .MuiDialog-paper': {
+              margin: { xs: '16px', sm: '32px' },
+              width: { xs: 'calc(100% - 32px)', sm: 'auto' },
+              maxHeight: { xs: 'calc(100% - 32px)', sm: 'auto' }
+            }
+          }}
         >
-          <DialogTitle>Preview Image</DialogTitle>
-          <DialogContent>
-            <img src={selectedImage} alt="Preview" style={{ width: '100%', height: '100%' }} />
+          <DialogTitle>
+            <Typography variant="h6" component="div">
+              Preview Image
+            </Typography>
+          </DialogTitle>
+          <DialogContent dividers>
+            <Box 
+              sx={{ 
+                width: '100%', 
+                height: '100%', 
+                display: 'flex', 
+                justifyContent: 'center',
+                overflow: 'auto'
+              }}
+            >
+              <img 
+                src={selectedImage} 
+                alt="Preview" 
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '70vh',
+                  objectFit: 'contain'
+                }} 
+              />
+            </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseImagePreview} color="primary">
-              Close
+              Đóng
             </Button>
           </DialogActions>
         </Dialog>
